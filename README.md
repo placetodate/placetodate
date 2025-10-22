@@ -1,46 +1,57 @@
-# Getting Started with Create React App
+# React Firebase Google Auth
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This project demonstrates a basic React application connected to Firebase with Google login.
 
-## Available Scripts
+## Setup Instructions
 
-In the project directory, you can run:
+1.  **Install Dependencies:**
 
-### `npm start`
+    ```bash
+    npm install
+    ```
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+2.  **Firebase Project Setup:**
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+    a.  Go to the [Firebase Console](https://console.firebase.google.com/).
+    b.  Create a new Firebase project.
+    c.  Add a new web app to your project.
+    d.  Copy your Firebase configuration.
 
-### `npm test`
+3.  **Update Firebase Configuration:**
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+    Create a file named `src/firebaseConfig.ts` and add your Firebase configuration:
 
-### `npm run build`
+    ```typescript
+    import { initializeApp } from 'firebase/app';
+    import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const googleProvider = new GoogleAuthProvider();
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+    export { auth, googleProvider };
+    ```
 
-### `npm run eject`
+    Replace the placeholder values (`YOUR_API_KEY`, etc.) with your actual Firebase configuration.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+4.  **Enable Google Authentication:**
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    a.  In the Firebase Console, navigate to "Authentication" > "Sign-in method".
+    b.  Enable the "Google" sign-in provider.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+5.  **Run the Application:**
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+    ```bash
+    npm start
+    ```
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+    The application will open in your browser, and you can test the Google login functionality.

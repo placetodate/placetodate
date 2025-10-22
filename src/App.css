@@ -1,38 +1,108 @@
 .App {
   text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   min-height: 100vh;
+  background-color: #f8f8f8;
+}
+
+.login-screen {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
+  width: 100%;
+  max-width: 400px; /* Adjust as needed */
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.hero-image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 20px;
+}
+
+.content {
+  text-align: center;
+  padding: 0 20px;
+}
+
+.content h1 {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.content p {
+  font-size: 1.1em;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.primary-button,
+.secondary-button {
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 15px;
+  border-radius: 30px;
+  border: none;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.primary-button {
+  background-color: #ff4081; /* Pink color */
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.primary-button:hover {
+  background-color: #e0326f;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.secondary-button {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.secondary-button:hover {
+  background-color: #e6e6e6;
+}
+
+.forgot-password {
+  color: #ff4081;
+  text-decoration: none;
+  margin-top: 10px;
+  display: block;
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  padding: 15px 0;
+  border-top: 1px solid #eee;
+  position: fixed;
+  bottom: 0;
+  background-color: white;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: #555;
+}
+
+.nav-item:hover {
+  color: #ff4081;
 }
