@@ -4,13 +4,16 @@ import { auth, googleProvider, db } from './firebaseConfig';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, increment } from "firebase/firestore";
 import Login from './pages/Login';
-import Events from './pages/Events';
+import Events, { type EventItem } from './pages/Events';
 import CreateEvent from './pages/CreateEvent';
+import EventDetails from './pages/EventDetails';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loginCount, setLoginCount] = useState<number | null>(null);
-  const [view, setView] = useState<'events' | 'createEvent'>('events');
+  const [view, setView] = useState<'events' | 'createEvent' | 'eventDetails'>('events');
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -85,9 +88,37 @@ function App() {
     <div className="App">
       {user ? (
         view === 'events' ? (
-          <Events onAddNewEvent={() => setView('createEvent')} />
+          <Events
+            currentUserId={user?.uid}
+            onAddNewEvent={() => {
+              setEditingEvent(null);
+              setView('createEvent');
+            }}
+            onSelectEvent={(ev) => {
+              setSelectedEvent(ev);
+              setView('eventDetails');
+            }}
+            onEditEvent={(ev) => {
+              setEditingEvent(ev);
+              setView('createEvent');
+            }}
+          />
+        ) : view === 'createEvent' ? (
+          <CreateEvent
+            mode={editingEvent ? 'update' : 'create'}
+            initialEvent={editingEvent || undefined}
+            onClose={() => {
+              setEditingEvent(null);
+              setView('events');
+            }}
+          />
         ) : (
-          <CreateEvent onClose={() => setView('events')} />
+          selectedEvent && (
+            <EventDetails
+              event={selectedEvent}
+              onBack={() => setView('events')}
+            />
+          )
         )
       ) : (
         <Login
