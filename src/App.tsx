@@ -12,12 +12,36 @@ import Profile from './pages/Profile';
 type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile';
 type NavView = 'events' | 'matches' | 'profile';
 
+type ProfileData = {
+  name: string;
+  age: number;
+  location: string;
+  goal: string;
+  about: string;
+  interests: string[];
+  photos: string[];
+};
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loginCount, setLoginCount] = useState<number | null>(null);
   const [view, setView] = useState<MainView>('events');
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [profileData, setProfileData] = useState<ProfileData>({
+    name: 'Ethan',
+    age: 28,
+    location: 'San Francisco',
+    goal: 'Looking for a relationship',
+    about:
+      "I'm a software engineer who loves hiking, photography, and exploring new cultures. I'm looking for someone who is adventurous, kind, and enjoys deep conversations.",
+    interests: ['Hiking', 'Photography', 'Travel', 'Tech', 'Foodie', 'Music'],
+    photos: [
+      'https://i.pravatar.cc/600?img=45',
+      'https://i.pravatar.cc/600?img=11',
+      'https://i.pravatar.cc/600?img=17',
+    ],
+  });
 
   const handleDeleteEvent = async (event: EventItem) => {
     try {
@@ -46,6 +70,9 @@ function App() {
   };
 
   const activeNav: NavView = view === 'profile' ? 'profile' : 'events';
+  const handleUpdateProfile = (nextProfile: ProfileData) => {
+    setProfileData(nextProfile);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -164,6 +191,8 @@ function App() {
           )
         ) : (
           <Profile
+            profile={profileData}
+            onUpdate={handleUpdateProfile}
             onNavigate={handleNavigate}
             activeView={activeNav}
           />

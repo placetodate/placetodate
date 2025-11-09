@@ -753,6 +753,81 @@
   justify-content: center;
 }
 
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 20px 24px;
+  text-align: left;
+}
+
+.profile-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-weight: 600;
+  color: #5b4c55;
+}
+
+.profile-file-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.camera-preview {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: 18px;
+  background: #f9f6f8;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.camera-preview video {
+  width: 100%;
+  border-radius: 16px;
+}
+
+.camera-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.local-photo-preview {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  margin-bottom: 8px;
+}
+
+.local-photo-item {
+  position: relative;
+}
+
+.local-photo-item img {
+  width: 100%;
+  border-radius: 16px;
+  object-fit: cover;
+}
+
+.remove-local-photo {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  border-radius: 14px;
+  padding: 6px 10px;
+  background: rgba(232, 58, 70, 0.85);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
 .location-picker-overlay {
   position: fixed;
   inset: 0;
