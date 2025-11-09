@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 type ProfileData = {
   name: string;
@@ -13,6 +13,7 @@ type ProfileData = {
 type ProfileProps = {
   profile: ProfileData;
   onUpdate: (profile: ProfileData) => void | Promise<void>;
+  onLogout: () => void | Promise<void>;
   onBack?: () => void;
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   activeView: 'events' | 'matches' | 'profile';
@@ -42,13 +43,14 @@ const createDraftFromProfile = (profile: ProfileData): DraftState => ({
   cameraPreview: null,
 });
 
-function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileProps) {
+function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }: ProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<DraftState>(() => createDraftFromProfile(profile));
   const [localPhotos, setLocalPhotos] = useState<string[]>([]);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (!isEditing) {
@@ -59,7 +61,18 @@ function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileP
         setCameraStream(null);
       }
     }
-  }, [profile, isEditing]);
+  }, [profile, isEditing, cameraStream]);
+
+  useEffect(() => {
+    if (videoRef.current && cameraStream) {
+      videoRef.current.srcObject = cameraStream;
+    }
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [cameraStream]);
 
   const displayProfile = useMemo(() => profile, [profile]);
 
@@ -88,6 +101,11 @@ function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileP
   };
 
   const handleOpenCamera = async () => {
+    if (!('mediaDevices' in navigator) || !navigator.mediaDevices?.getUserMedia) {
+      alert('Camera access is not supported in this browser.');
+      return;
+    }
+
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
       setCameraStream(null);
@@ -97,11 +115,9 @@ function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileP
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
     } catch (err) {
       console.error(err);
+      alert('Unable to access the camera.');
     }
   };
 
@@ -118,10 +134,23 @@ function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileP
     setLocalPhotos((prev) => [...prev, dataUrl]);
   };
 
+  const handleLogoutClick = async () => {
+    try {
+      setIsLoggingOut(true);
+      await Promise.resolve(onLogout());
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   const handleCancel = () => {
     setDraft(createDraftFromProfile(profile));
     setIsEditing(false);
     setLocalPhotos([]);
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
     setIsSaving(false);
   };
 
@@ -384,6 +413,13 @@ function Profile({ profile, onUpdate, onBack, onNavigate, activeView }: ProfileP
           <>
             <button className="chip-button primary">Chat</button>
             <button className="chip-button">Request Photos</button>
+            <button
+              className="chip-button danger"
+              onClick={handleLogoutClick}
+              disabled={isLoggingOut}
+            >
+              {isLoggingOut ? 'Logging out…' : 'Log out'}
+            </button>
           </>
         )}
       </div>

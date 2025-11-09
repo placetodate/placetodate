@@ -195,6 +195,7 @@ function App() {
             onUpdate={handleUpdateProfile}
             onNavigate={handleNavigate}
             activeView={activeNav}
+            onLogout={handleLogout}
           />
         )
       ) : (

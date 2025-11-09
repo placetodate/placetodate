@@ -648,6 +648,17 @@
   box-shadow: 0 8px 20px rgba(255, 64, 129, 0.25);
 }
 
+.chip-button.danger {
+  background: rgba(232, 58, 70, 0.12);
+  color: #e83a46;
+}
+
+.chip-button.danger:hover,
+.chip-button.danger:focus-visible {
+  background: #e83a46;
+  color: #fff;
+}
+
 .profile-page {
   width: 100%;
   max-width: 420px;

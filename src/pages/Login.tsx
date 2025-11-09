@@ -50,7 +50,7 @@ function Login({
   return (
     <div className="login-screen">
       <img
-        src="/assets/events_illustration.png"
+        src="/assets/ai-login.jpg"
         alt="Meet people at events"
         className="hero-image"
       />
