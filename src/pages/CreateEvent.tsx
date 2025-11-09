@@ -18,6 +18,8 @@ type CreateEventProps = {
   onClose: () => void;
   mode?: 'create' | 'update';
   initialEvent?: EventItem;
+  onNavigate: (view: 'events' | 'matches' | 'profile') => void;
+  activeView: 'events' | 'matches' | 'profile';
 };
 
 type Coordinates = {
@@ -112,7 +114,13 @@ const toTimeInputValue = (date?: Date) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
-function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProps) {
+function CreateEvent({
+  onClose,
+  mode = 'create',
+  initialEvent,
+  onNavigate,
+  activeView,
+}: CreateEventProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
@@ -176,6 +184,12 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
     }
   }, [initialEvent, mode]);
 
+  const releasePreviewUrl = (url: string | null) => {
+    if (url && url.startsWith('blob:')) {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const resetForm = () => {
     setName('');
     setDescription('');
@@ -192,12 +206,6 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
     setCover(null);
     setExistingCoverUrl(null);
     setCoverPreview(DEFAULT_COVER);
-  };
-
-  const releasePreviewUrl = (url: string) => {
-    if (url.startsWith('blob:')) {
-      URL.revokeObjectURL(url);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -240,9 +248,7 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
       console.error(err);
     } finally {
       setSubmitting(false);
-      if (coverPreview) {
-        releasePreviewUrl(coverPreview);
-      }
+      releasePreviewUrl(coverPreview);
       resetForm();
       onClose();
     }
@@ -250,16 +256,12 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
 
   useEffect(() => {
     return () => {
-      if (coverPreview) {
-        releasePreviewUrl(coverPreview);
-      }
+      releasePreviewUrl(coverPreview);
     };
   }, [coverPreview]);
 
   const handleCoverChange = (file: File | null) => {
-    if (coverPreview) {
-      releasePreviewUrl(coverPreview);
-    }
+    releasePreviewUrl(coverPreview);
     if (file) {
       const objectUrl = URL.createObjectURL(file);
       setCoverPreview(objectUrl);
@@ -307,6 +309,12 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
     setLocationPickerOpen(false);
   };
 
+  const handleCancel = () => {
+    releasePreviewUrl(coverPreview);
+    resetForm();
+    onClose();
+  };
+
   const handleDraftLocationTextChange = (value: string) => {
     setDraftLocationText(value);
     if (!value.trim()) {
@@ -344,8 +352,8 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
   return (
     <div className="create-event-page">
       <header className="create-header">
-        <button className="back-btn" aria-label="Close" onClick={onClose}>×</button>
-        <h1>Create Event</h1>
+        <button className="back-btn" aria-label="Close" onClick={handleCancel}>×</button>
+        <h1>{mode === 'update' ? 'Edit Event' : 'Create Event'}</h1>
       </header>
 
       <form className="create-form" onSubmit={handleSubmit}>
@@ -482,13 +490,22 @@ function CreateEvent({ onClose, mode = 'create', initialEvent }: CreateEventProp
       </form>
 
       <nav className="bottom-nav">
-        <button className="nav-item">📅
+        <button
+          className={`nav-item ${activeView === 'events' ? 'active' : ''}`}
+          onClick={() => onNavigate('events')}
+        >📅
           <div className="nav-label">Events</div>
         </button>
-        <button className="nav-item">👥
+        <button
+          className={`nav-item ${activeView === 'matches' ? 'active' : ''}`}
+          onClick={() => onNavigate('matches')}
+        >👥
           <div className="nav-label">Matches</div>
         </button>
-        <button className="nav-item">👤
+        <button
+          className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => onNavigate('profile')}
+        >👤
           <div className="nav-label">Profile</div>
         </button>
       </nav>

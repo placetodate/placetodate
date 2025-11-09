@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { EventItem } from './Events';
 
 type EventDetailsProps = {
   event: EventItem;
   onBack: () => void;
+  onDelete?: (event: EventItem) => Promise<void> | void;
+  canDelete?: boolean;
+  onNavigate: (view: 'events' | 'matches' | 'profile') => void;
+  activeView: 'events' | 'matches' | 'profile';
 };
 
 type Attendee = {
@@ -40,8 +44,28 @@ const DEFAULT_ATTENDEES: { name: string; avatar: string }[] = [
 
 const fallbackCover = '/assets/events_illustration.png';
 
-function EventDetails({ event, onBack }: EventDetailsProps) {
+function EventDetails({
+  event,
+  onBack,
+  onDelete,
+  canDelete = false,
+  onNavigate,
+  activeView,
+}: EventDetailsProps) {
   const coverUrl = event.coverUrl || fallbackCover;
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    const confirmed = window.confirm(`Delete "${event.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+    try {
+      setIsDeleting(true);
+      await onDelete(event);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="event-details-page">
@@ -50,7 +74,18 @@ function EventDetails({ event, onBack }: EventDetailsProps) {
           ←
         </button>
         <h1>Event Details</h1>
-        <span aria-hidden="true" className="header-spacer" />
+        {canDelete && onDelete ? (
+          <button
+            type="button"
+            className="icon-button danger"
+            onClick={handleDelete}
+            disabled={isDeleting}
+          >
+            🗑
+          </button>
+        ) : (
+          <span aria-hidden="true" className="header-spacer" />
+        )}
       </header>
 
       <section className="event-hero" style={{ backgroundImage: `url(${coverUrl})` }}>
@@ -99,13 +134,22 @@ function EventDetails({ event, onBack }: EventDetailsProps) {
       </section>
 
       <nav className="bottom-nav">
-        <button className="nav-item active">📅
+        <button
+          className={`nav-item ${activeView === 'events' ? 'active' : ''}`}
+          onClick={() => onNavigate('events')}
+        >📅
           <div className="nav-label">Events</div>
         </button>
-        <button className="nav-item">👥
+        <button
+          className={`nav-item ${activeView === 'matches' ? 'active' : ''}`}
+          onClick={() => onNavigate('matches')}
+        >👥
           <div className="nav-label">Matches</div>
         </button>
-        <button className="nav-item">👤
+        <button
+          className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => onNavigate('profile')}
+        >👤
           <div className="nav-label">Profile</div>
         </button>
       </nav>

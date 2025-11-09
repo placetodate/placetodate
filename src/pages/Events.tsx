@@ -21,10 +21,19 @@ type EventsProps = {
   onAddNewEvent: () => void;
   onSelectEvent: (event: EventItem) => void;
   onEditEvent: (event: EventItem) => void;
+  onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   currentUserId?: string | null;
+  activeView: 'events' | 'matches' | 'profile';
 };
 
-function Events({ onAddNewEvent, onSelectEvent, onEditEvent, currentUserId }: EventsProps) {
+function Events({
+  onAddNewEvent,
+  onSelectEvent,
+  onEditEvent,
+  onNavigate,
+  currentUserId,
+  activeView,
+}: EventsProps) {
   const [events, setEvents] = useState<EventItem[]>([]);
 
   useEffect(() => {
@@ -101,13 +110,22 @@ function Events({ onAddNewEvent, onSelectEvent, onEditEvent, currentUserId }: Ev
       </div>
 
       <nav className="bottom-nav">
-        <button className="nav-item active">📅
+        <button
+          className={`nav-item ${activeView === 'events' ? 'active' : ''}`}
+          onClick={() => onNavigate('events')}
+        >📅
           <div className="nav-label">Events</div>
         </button>
-        <button className="nav-item">👥
+        <button
+          className={`nav-item ${activeView === 'matches' ? 'active' : ''}`}
+          onClick={() => onNavigate('matches')}
+        >👥
           <div className="nav-label">Matches</div>
         </button>
-        <button className="nav-item">👤
+        <button
+          className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
+          onClick={() => onNavigate('profile')}
+        >👤
           <div className="nav-label">Profile</div>
         </button>
       </nav>
