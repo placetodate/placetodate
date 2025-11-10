@@ -8,6 +8,7 @@ type ProfileData = {
   about: string;
   interests: string[];
   photos: string[];
+  avatar: string;
 };
 
 type ProfileProps = {
@@ -29,6 +30,7 @@ type DraftState = {
   photosText: string;
   photoPreview?: string | null;
   cameraPreview?: string | null;
+  avatar: string;
 };
 
 const createDraftFromProfile = (profile: ProfileData): DraftState => ({
@@ -39,6 +41,7 @@ const createDraftFromProfile = (profile: ProfileData): DraftState => ({
   about: profile.about,
   interestsText: profile.interests.join(', '),
   photosText: profile.photos.join('\n'),
+  avatar: profile.avatar,
   photoPreview: null,
   cameraPreview: null,
 });
@@ -51,6 +54,7 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const likesCount = 3;
 
   useEffect(() => {
     if (!isEditing) {
@@ -132,6 +136,17 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const dataUrl = canvas.toDataURL('image/png');
     setLocalPhotos((prev) => [...prev, dataUrl]);
+    setDraft((prev) => ({ ...prev, avatar: dataUrl }));
+  };
+
+  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setDraft((prev) => ({ ...prev, avatar: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleLogoutClick = async () => {
@@ -172,6 +187,7 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
       about: draft.about.trim() || profile.about,
       interests: interests.length ? interests : profile.interests,
       photos: photos.length || localPhotos.length ? [...photos, ...localPhotos] : profile.photos,
+    avatar: draft.avatar || profile.avatar,
     };
 
     try {
@@ -192,6 +208,7 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
   const ageToDisplay = isEditing ? draft.age || profile.age.toString() : displayProfile.age.toString();
   const locationToDisplay = isEditing ? draft.location || profile.location : displayProfile.location;
   const goalToDisplay = isEditing ? draft.goal || profile.goal : displayProfile.goal;
+  const avatarToDisplay = isEditing ? draft.avatar || profile.avatar : displayProfile.avatar;
 
   const aboutToDisplay = isEditing ? draft.about : displayProfile.about;
   const interestsToDisplay = isEditing
@@ -237,7 +254,7 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
       </header>
 
       <section className="profile-hero">
-        <img src="https://i.pravatar.cc/240?img=45" alt="Ethan" className="profile-avatar" />
+        <img src={avatarToDisplay} alt={nameToDisplay} className="profile-avatar" />
         <h2>{nameToDisplay}</h2>
         <p className="profile-meta">{ageToDisplay}, {locationToDisplay}</p>
         <p className="profile-goal">{goalToDisplay}</p>
@@ -245,6 +262,32 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
 
       {isEditing ? (
         <div className="profile-form">
+          <div className="avatar-editor">
+            <span>Profile photo</span>
+            <div className="avatar-editor-row">
+              <img src={draft.avatar || profile.avatar} alt="Avatar preview" />
+              <div className="avatar-editor-actions">
+                <label className="upload-btn primary" htmlFor="profile-avatar-file">
+                  Choose Photo
+                </label>
+                <input
+                  id="profile-avatar-file"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleAvatarUpload}
+                />
+                <button
+                  type="button"
+                  className="upload-btn"
+                  onClick={handleOpenCamera}
+                  disabled={!('mediaDevices' in navigator)}
+                >
+                  {cameraStream ? 'Close Camera' : 'Use Camera'}
+                </button>
+              </div>
+            </div>
+          </div>
           <label>
             <span>Name</span>
             <input
@@ -256,7 +299,7 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
           </label>
           <div className="profile-file-row">
             <label className="upload-btn primary" htmlFor="profile-photo-file">
-              Upload Photos
+              Upload Gallery Photos
             </label>
             <input
               id="profile-photo-file"
@@ -266,14 +309,6 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
               style={{ display: 'none' }}
               onChange={handleLocalPhotoUpload}
             />
-            <button
-              type="button"
-              className="upload-btn"
-              onClick={handleOpenCamera}
-              disabled={!('mediaDevices' in navigator)}
-            >
-              {cameraStream ? 'Close Camera' : 'Use Camera'}
-            </button>
           </div>
           {cameraStream && (
             <div className="camera-preview">
@@ -428,20 +463,37 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
         <button
           className={`nav-item ${activeView === 'events' ? 'active' : ''}`}
           onClick={() => onNavigate('events')}
-        >📅
-          <div className="nav-label">Events</div>
+        >
+          <span className="nav-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M5 8.5h14M5 12.5h14M8.5 4v4.5M15.5 4v4.5M6.75 19.5h10.5c1.243 0 2.25-1.007 2.25-2.25V7.75A2.25 2.25 0 0 0 17.25 5.5H6.75A2.25 2.25 0 0 0 4.5 7.75v9.5A2.25 2.25 0 0 0 6.75 19.5Z" />
+            </svg>
+          </span>
+          <span className="nav-label">Events</span>
         </button>
         <button
           className={`nav-item ${activeView === 'matches' ? 'active' : ''}`}
           onClick={() => onNavigate('matches')}
-        >👥
-          <div className="nav-label">Matches</div>
+        >
+          <span className="nav-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 20.25s-7.5-4.5-7.5-10.125a4.125 4.125 0 0 1 7.125-2.7l.375.45.375-.45A4.125 4.125 0 0 1 19.5 10.125C19.5 15.75 12 20.25 12 20.25Z" />
+            </svg>
+          </span>
+          {likesCount > 0 && <span className="nav-badge">{likesCount}</span>}
+          <span className="nav-label">Matches</span>
         </button>
         <button
           className={`nav-item ${activeView === 'profile' ? 'active' : ''}`}
           onClick={() => onNavigate('profile')}
-        >👤
-          <div className="nav-label">Profile</div>
+        >
+          <span className="nav-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M12 12.25c2.347 0 4.25-1.903 4.25-4.25S14.347 3.75 12 3.75 7.75 5.653 7.75 8s1.903 4.25 4.25 4.25Z" />
+              <path d="M5.5 19.25c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className="nav-label">Profile</span>
         </button>
       </nav>
     </div>

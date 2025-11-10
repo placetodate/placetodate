@@ -8,8 +8,9 @@ import Events, { type EventItem } from './pages/Events';
 import CreateEvent from './pages/CreateEvent';
 import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
+import Matches from './pages/Matches';
 
-type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile';
+type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile' | 'matches';
 type NavView = 'events' | 'matches' | 'profile';
 
 type ProfileData = {
@@ -20,6 +21,7 @@ type ProfileData = {
   about: string;
   interests: string[];
   photos: string[];
+  avatar: string;
 };
 
 function App() {
@@ -41,6 +43,7 @@ function App() {
       'https://i.pravatar.cc/600?img=11',
       'https://i.pravatar.cc/600?img=17',
     ],
+    avatar: 'https://i.pravatar.cc/240?img=45',
   });
 
   const handleDeleteEvent = async (event: EventItem) => {
@@ -56,20 +59,13 @@ function App() {
   };
 
   const handleNavigate = (target: NavView) => {
-    if (target === 'profile') {
-      setSelectedEvent(null);
-      setEditingEvent(null);
-      setView('profile');
-      return;
-    }
-
-    // Matches currently routes to events list.
     setSelectedEvent(null);
     setEditingEvent(null);
-    setView('events');
+    setView(target);
   };
 
-  const activeNav: NavView = view === 'profile' ? 'profile' : 'events';
+  const activeNav: NavView =
+    view === 'profile' ? 'profile' : view === 'matches' ? 'matches' : 'events';
   const handleUpdateProfile = (nextProfile: ProfileData) => {
     setProfileData(nextProfile);
   };
@@ -189,6 +185,8 @@ function App() {
               activeView={activeNav}
             />
           )
+        ) : view === 'matches' ? (
+          <Matches onNavigate={handleNavigate} activeView={activeNav} />
         ) : (
           <Profile
             profile={profileData}
