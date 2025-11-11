@@ -1,18 +1,39 @@
 import React from 'react';
 
+export type MatchProfile = {
+  name: string;
+  age: number;
+  location: string;
+  interests: string[];
+  compatibility: number;
+  avatar: string;
+  goal: string;
+  about: string;
+  photos: string[];
+};
+
 type MatchesProps = {
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   activeView: 'events' | 'matches' | 'profile';
+  onSelectMatch: (match: MatchProfile) => void;
 };
 
-const sampleMatches = [
+const sampleMatches: MatchProfile[] = [
   {
     name: 'Amelia',
     age: 29,
     location: 'Tel Aviv',
     interests: ['Hiking', 'Live Music'],
     compatibility: 92,
-    avatar: 'https://i.pravatar.cc/160?img=47',
+    avatar: 'https://i.pravatar.cc/300?img=47',
+    goal: 'Looking for shared adventures',
+    about:
+      'Product designer who spends weekends chasing sunsets along the coast. I love live music, impromptu road trips, and discovering new street food spots.',
+    photos: [
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
+    ],
   },
   {
     name: 'Daniel',
@@ -20,7 +41,15 @@ const sampleMatches = [
     location: 'Herzliya',
     interests: ['Surfing', 'Art Galleries'],
     compatibility: 88,
-    avatar: 'https://i.pravatar.cc/160?img=12',
+    avatar: 'https://i.pravatar.cc/300?img=12',
+    goal: 'Seeking a partner-in-crime for beach getaways',
+    about:
+      'Startup founder by day, wave chaser by dawn. I collect vinyl records, experiment in the kitchen, and never turn down a weekend hike.',
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80',
+    ],
   },
   {
     name: 'Noa',
@@ -28,11 +57,19 @@ const sampleMatches = [
     location: 'Jerusalem',
     interests: ['Coffee Tastings', 'Photography'],
     compatibility: 85,
-    avatar: 'https://i.pravatar.cc/160?img=28',
+    avatar: 'https://i.pravatar.cc/300?img=28',
+    goal: 'Excited to meet someone curious and kind',
+    about:
+      'Documentary photographer fascinated by stories behind people and places. I host coffee tasting nights and always travel with a journal.',
+    photos: [
+      'https://images.unsplash.com/photo-1506774778257-3247145b13fa?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+    ],
   },
 ];
 
-function Matches({ onNavigate, activeView }: MatchesProps) {
+function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
   const likesCount = 3;
 
   return (
@@ -44,7 +81,19 @@ function Matches({ onNavigate, activeView }: MatchesProps) {
 
       <main className="matches-list">
         {sampleMatches.map((match) => (
-          <article key={match.name} className="match-card">
+          <article
+            key={match.name}
+            className="match-card"
+            onClick={() => onSelectMatch(match)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectMatch(match);
+              }
+            }}
+          >
             <div className="match-avatar">
               <img src={match.avatar} alt={match.name} />
             </div>
@@ -64,8 +113,15 @@ function Matches({ onNavigate, activeView }: MatchesProps) {
             </div>
             <div className="match-actions">
               <span className="compatibility-pill">{match.compatibility}% match</span>
-              <button type="button" className="chip-button primary">
-                Say hi
+              <button
+                type="button"
+                className="chip-button primary"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectMatch(match);
+                }}
+              >
+                View profile
               </button>
             </div>
           </article>
@@ -114,5 +170,4 @@ function Matches({ onNavigate, activeView }: MatchesProps) {
 }
 
 export default Matches;
-
 

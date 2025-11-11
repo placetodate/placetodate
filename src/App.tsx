@@ -8,9 +8,10 @@ import Events, { type EventItem } from './pages/Events';
 import CreateEvent from './pages/CreateEvent';
 import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
-import Matches from './pages/Matches';
+import Matches, { type MatchProfile } from './pages/Matches';
+import MatchProfileView from './pages/MatchProfile';
 
-type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile' | 'matches';
+type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile' | 'matches' | 'matchProfile';
 type NavView = 'events' | 'matches' | 'profile';
 
 type ProfileData = {
@@ -30,6 +31,7 @@ function App() {
   const [view, setView] = useState<MainView>('events');
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [selectedMatch, setSelectedMatch] = useState<MatchProfile | null>(null);
   const [profileData, setProfileData] = useState<ProfileData>({
     name: 'Ethan',
     age: 28,
@@ -65,7 +67,7 @@ function App() {
   };
 
   const activeNav: NavView =
-    view === 'profile' ? 'profile' : view === 'matches' ? 'matches' : 'events';
+    view === 'profile' ? 'profile' : view === 'matches' || view === 'matchProfile' ? 'matches' : 'events';
   const handleUpdateProfile = (nextProfile: ProfileData) => {
     setProfileData(nextProfile);
   };
@@ -186,7 +188,23 @@ function App() {
             />
           )
         ) : view === 'matches' ? (
-          <Matches onNavigate={handleNavigate} activeView={activeNav} />
+          <Matches
+            onNavigate={handleNavigate}
+            activeView={activeNav}
+            onSelectMatch={(match) => {
+              setSelectedMatch(match);
+              setView('matchProfile');
+            }}
+          />
+        ) : view === 'matchProfile' ? (
+          selectedMatch && (
+            <MatchProfileView
+              match={selectedMatch}
+              onBack={() => setView('matches')}
+              onNavigate={handleNavigate}
+              activeView={activeNav}
+            />
+          )
         ) : (
           <Profile
             profile={profileData}
