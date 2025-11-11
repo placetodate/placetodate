@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { DayPicker } from 'react-day-picker';
 import type { DateRange } from 'react-day-picker';
 import 'react-day-picker/dist/style.css';
@@ -67,6 +67,43 @@ const parseLatLng = (value: string): Coordinates | null => {
 
 const formatCoords = (coords: Coordinates | null) =>
   coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : null;
+
+type NominatimAddress = Record<string, string | undefined>;
+
+const buildAddressLabel = (address?: NominatimAddress | null): string | null => {
+  if (!address) return null;
+  const house = address.house_number;
+  const road =
+    address.road ||
+    address.pedestrian ||
+    address.path ||
+    address.cycleway ||
+    address.footway;
+  const neighbourhood = address.neighbourhood || address.suburb;
+  const city = address.city || address.town || address.village || neighbourhood;
+  const stateRaw = address.state || address.region;
+  const state =
+    stateRaw && /district/i.test(stateRaw) ? undefined : stateRaw;
+  const parts: string[] = [];
+  const street = [house, road].filter(Boolean).join(' ').trim();
+  if (street) parts.push(street);
+  if (city) parts.push(city);
+  if (state && state !== city) parts.push(state);
+  return parts.join(', ') || null;
+};
+
+const cleanDisplayName = (value?: string | null): string | null => {
+  if (!value) return null;
+  const segments = value.split(',').map((segment) => segment.trim()).filter(Boolean);
+  const filtered: string[] = [];
+  for (const segment of segments) {
+    if (/district/i.test(segment)) continue;
+    if (filtered.some((existing) => existing.toLowerCase() === segment.toLowerCase())) continue;
+    filtered.push(segment);
+    if (filtered.length >= 3) break;
+  }
+  return filtered.join(', ') || null;
+};
 
 type LocationMarkerProps = {
   position: Coordinates | null;
@@ -137,7 +174,74 @@ function CreateEvent({
   const [submitting, setSubmitting] = useState(false);
   const [coverPreview, setCoverPreview] = useState<string>(DEFAULT_COVER);
   const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
+  const [resolvedLocationText, setResolvedLocationText] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [geocodeStatus, setGeocodeStatus] = useState<'idle' | 'searching' | 'success' | 'not-found' | 'error'>('idle');
+  const skipGeocodeRef = useRef(false);
+  const geocodeAbortRef = useRef<AbortController | null>(null);
+  const reverseGeocodeAbortRef = useRef<AbortController | null>(null);
+  const [suggestions, setSuggestions] = useState<
+    { label: string; coords: Coordinates; raw: any }[]
+  >([]);
+  const [isSuggestionOpen, setSuggestionOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const suggestionListRef = useRef<HTMLUListElement | null>(null);
+  const locationInputRef = useRef<HTMLInputElement | null>(null);
   const likesCount = 3;
+
+  const updateAddressFromCoords = useCallback(
+    async (coords: Coordinates) => {
+      if (!isLocationPickerOpen) return;
+      reverseGeocodeAbortRef.current?.abort();
+      const controller = new AbortController();
+      reverseGeocodeAbortRef.current = controller;
+      setIsGeocoding(true);
+      setGeocodeStatus('searching');
+      try {
+        const params = new URLSearchParams({
+          format: 'json',
+          lat: coords.lat.toString(),
+          lon: coords.lng.toString(),
+          addressdetails: '1',
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
+          signal: controller.signal,
+          headers: {
+            'Accept-Language': 'en',
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Reverse geocode failed with status ${response.status}`);
+        }
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        const formatted =
+          buildAddressLabel(data.address) ||
+          cleanDisplayName(data.display_name) ||
+          '';
+        skipGeocodeRef.current = true;
+        setDraftLocationText(formatted);
+        setResolvedLocationText(formatted);
+        setDraftLocationCoords(coords);
+        setGeocodeStatus('success');
+        setSuggestions([]);
+        setSuggestionOpen(false);
+        setHighlightIndex(-1);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error('Reverse geocoding error', err);
+        setGeocodeStatus('error');
+        setSuggestions([]);
+        setSuggestionOpen(false);
+        setHighlightIndex(-1);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsGeocoding(false);
+        }
+      }
+    },
+    [isLocationPickerOpen],
+  );
 
   const startDateTime = combineDateAndTime(dateRange?.from, startTime);
   const endDateTime = combineDateAndTime(dateRange?.to, endTime);
@@ -149,6 +253,149 @@ function CreateEvent({
       shadowUrl: markerShadow,
     });
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        suggestionListRef.current &&
+        !suggestionListRef.current.contains(target) &&
+        locationInputRef.current &&
+        !locationInputRef.current.contains(target)
+      ) {
+        setSuggestionOpen(false);
+        setHighlightIndex(-1);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    geocodeAbortRef.current?.abort();
+    geocodeAbortRef.current = null;
+    if (!isLocationPickerOpen) {
+      setIsGeocoding(false);
+      setGeocodeStatus('idle');
+      return undefined;
+    }
+
+    const value = draftLocationText.trim();
+    if (!value) {
+      setDraftLocationCoords(null);
+      setResolvedLocationText('');
+      setIsGeocoding(false);
+      setGeocodeStatus('idle');
+      return undefined;
+    }
+
+    if (skipGeocodeRef.current) {
+      skipGeocodeRef.current = false;
+      setSuggestionOpen(false);
+      setSuggestions([]);
+      setHighlightIndex(-1);
+      return undefined;
+    }
+
+    const parsedCoords = parseLatLng(value);
+    if (parsedCoords) {
+      setDraftLocationCoords(parsedCoords);
+      updateAddressFromCoords(parsedCoords);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    geocodeAbortRef.current = controller;
+    const debounceId = window.setTimeout(async () => {
+      setIsGeocoding(true);
+      setGeocodeStatus('searching');
+      try {
+        const params = new URLSearchParams({
+          format: 'json',
+          q: value,
+          limit: '1',
+          addressdetails: '1',
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+          signal: controller.signal,
+          headers: {
+            'Accept-Language': 'en',
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Geocoding failed with status ${response.status}`);
+        }
+        const results = await response.json();
+        if (controller.signal.aborted) return;
+        if (Array.isArray(results) && results.length > 0) {
+          const mapped = results
+            .slice(0, 6)
+            .map((result: any) => {
+              const coords: Coordinates = {
+                lat: parseFloat(result.lat),
+                lng: parseFloat(result.lon),
+              };
+              const label =
+                buildAddressLabel(result.address) ||
+                cleanDisplayName(result.display_name) ||
+                value;
+              return {
+                label,
+                coords,
+                raw: result,
+              };
+            })
+            .filter(
+              (item) =>
+                Number.isFinite(item.coords.lat) &&
+                Number.isFinite(item.coords.lng) &&
+                item.label,
+            );
+
+          setSuggestions(mapped);
+          setSuggestionOpen(mapped.length > 0);
+          setHighlightIndex(mapped.length > 0 ? 0 : -1);
+
+          if (mapped.length > 0) {
+            const top = mapped[0];
+            setDraftLocationCoords(top.coords);
+            setResolvedLocationText(top.label);
+            setGeocodeStatus('success');
+          } else {
+            setDraftLocationCoords(null);
+            setResolvedLocationText(value);
+            setGeocodeStatus('not-found');
+          }
+        } else {
+          setDraftLocationCoords(null);
+          setResolvedLocationText(value);
+          setGeocodeStatus('not-found');
+          setSuggestions([]);
+          setSuggestionOpen(false);
+          setHighlightIndex(-1);
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        console.error('Geocoding error', err);
+        setGeocodeStatus('error');
+        setSuggestions([]);
+        setSuggestionOpen(false);
+        setHighlightIndex(-1);
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsGeocoding(false);
+        }
+      }
+    }, 600);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(debounceId);
+      if (geocodeAbortRef.current === controller) {
+        geocodeAbortRef.current = null;
+      }
+    };
+  }, [draftLocationText, isLocationPickerOpen, updateAddressFromCoords]);
 
   useEffect(() => {
     if (mode === 'update' && initialEvent) {
@@ -175,8 +422,9 @@ function CreateEvent({
         : null;
       setLocationCoords(coords);
       setDraftLocationCoords(coords);
-      const initialLocationText = initialEvent.location || formatCoords(coords) || '';
+      const initialLocationText = initialEvent.location || '';
       setDraftLocationText(initialLocationText);
+      setResolvedLocationText(initialLocationText);
 
       const coverUrl = initialEvent.coverUrl || null;
       setCoverPreview(coverUrl || DEFAULT_COVER);
@@ -184,6 +432,13 @@ function CreateEvent({
       setCover(null);
     }
   }, [initialEvent, mode]);
+
+  useEffect(() => {
+    return () => {
+      geocodeAbortRef.current?.abort();
+      reverseGeocodeAbortRef.current?.abort();
+    };
+  }, []);
 
   const releasePreviewUrl = (url: string | null) => {
     if (url && url.startsWith('blob:')) {
@@ -207,6 +462,17 @@ function CreateEvent({
     setCover(null);
     setExistingCoverUrl(null);
     setCoverPreview(DEFAULT_COVER);
+    setResolvedLocationText('');
+    setGeocodeStatus('idle');
+    setIsGeocoding(false);
+    setSuggestions([]);
+    setSuggestionOpen(false);
+    setHighlightIndex(-1);
+    skipGeocodeRef.current = false;
+    geocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current?.abort();
+    geocodeAbortRef.current = null;
+    reverseGeocodeAbortRef.current = null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -241,9 +507,9 @@ function CreateEvent({
       } else {
         await addDoc(collection(db, 'events'), {
           ...payload,
-          ownerUid: auth.currentUser.uid,
-          createdAt: serverTimestamp(),
-        });
+        ownerUid: auth.currentUser.uid,
+        createdAt: serverTimestamp(),
+      });
       }
     } catch (err) {
       console.error(err);
@@ -291,23 +557,45 @@ function CreateEvent({
   };
 
   const handleOpenLocationPicker = () => {
-    setDraftLocationText(location);
+    const baseText = location || resolvedLocationText || '';
+    setDraftLocationText(baseText);
+    setResolvedLocationText(baseText);
     setDraftLocationCoords(locationCoords);
     setLocationPickerOpen(true);
+    setGeocodeStatus('idle');
+    skipGeocodeRef.current = false;
+    setSuggestionOpen(Boolean(baseText));
   };
 
   const handleCloseLocationPicker = () => {
     setLocationPickerOpen(false);
     setDraftLocationText(location);
     setDraftLocationCoords(locationCoords);
+    setResolvedLocationText(location || resolvedLocationText || '');
+    setIsGeocoding(false);
+    setGeocodeStatus('idle');
+    geocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current?.abort();
+    skipGeocodeRef.current = false;
+    setSuggestions([]);
+    setSuggestionOpen(false);
+    setHighlightIndex(-1);
   };
 
   const handleApplyLocationPicker = () => {
-    const cleanText = draftLocationText.trim();
-    const nextText = cleanText || formatCoords(draftLocationCoords) || '';
+    geocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current?.abort();
+    setIsGeocoding(false);
+    const cleanText = (resolvedLocationText || draftLocationText).trim();
+    const nextText = cleanText;
     setLocation(nextText);
     setLocationCoords(draftLocationCoords);
+    setResolvedLocationText(nextText);
     setLocationPickerOpen(false);
+    skipGeocodeRef.current = false;
+    setSuggestions([]);
+    setSuggestionOpen(false);
+    setHighlightIndex(-1);
   };
 
   const handleCancel = () => {
@@ -317,28 +605,99 @@ function CreateEvent({
   };
 
   const handleDraftLocationTextChange = (value: string) => {
+    geocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current?.abort();
+    setIsGeocoding(false);
     setDraftLocationText(value);
+    setGeocodeStatus('idle');
+    setSuggestionOpen(Boolean(value.trim()));
+    setHighlightIndex(-1);
     if (!value.trim()) {
       setDraftLocationCoords(null);
+      setResolvedLocationText('');
+      setSuggestions([]);
       return;
     }
     const coords = parseLatLng(value);
     if (coords) {
       setDraftLocationCoords(coords);
-    } else {
-      setDraftLocationCoords(null);
+      setResolvedLocationText((prev) => prev);
+      updateAddressFromCoords(coords);
+      setSuggestionOpen(false);
+      setSuggestions([]);
+      setHighlightIndex(-1);
+      return;
     }
+    setResolvedLocationText(value);
   };
 
   const handleDraftLocationCoordsChange = (coords: Coordinates) => {
+    geocodeAbortRef.current?.abort();
+    skipGeocodeRef.current = true;
     setDraftLocationCoords(coords);
-    setDraftLocationText(formatCoords(coords) ?? '');
+    setDraftLocationText('Fetching address…');
+    setResolvedLocationText((prev) => prev);
+    setGeocodeStatus('searching');
+    updateAddressFromCoords(coords);
+    setSuggestions([]);
+    setSuggestionOpen(false);
+    setHighlightIndex(-1);
+  };
+
+  const handleSuggestionSelect = (index: number) => {
+    const suggestion = suggestions[index];
+    if (!suggestion) return;
+    skipGeocodeRef.current = true;
+    geocodeAbortRef.current?.abort();
+    reverseGeocodeAbortRef.current?.abort();
+    setDraftLocationText(suggestion.label);
+    setResolvedLocationText(suggestion.label);
+    setDraftLocationCoords(suggestion.coords);
+    setSuggestionOpen(false);
+    setSuggestions([]);
+    setHighlightIndex(-1);
+    setIsGeocoding(false);
+    setGeocodeStatus('success');
+  };
+
+  const handleLocationInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isSuggestionOpen || suggestions.length === 0) {
+      if (event.key === 'Escape') {
+        setSuggestionOpen(false);
+        setHighlightIndex(-1);
+      }
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setHighlightIndex((prev) => {
+        const next = prev + 1;
+        return next >= suggestions.length ? 0 : next;
+      });
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setHighlightIndex((prev) => {
+        if (prev <= 0) {
+          return suggestions.length - 1;
+        }
+        return prev - 1;
+      });
+    } else if (event.key === 'Enter') {
+      if (highlightIndex >= 0 && highlightIndex < suggestions.length) {
+        event.preventDefault();
+        handleSuggestionSelect(highlightIndex);
+      }
+    } else if (event.key === 'Escape') {
+      setSuggestionOpen(false);
+      setHighlightIndex(-1);
+    }
   };
 
   const startSummary = formatDateTime(startDateTime) ?? 'Start date & time';
   const endSummary = formatDateTime(endDateTime) ?? 'End date & time';
-  const locationSummary = location || formatCoords(locationCoords) || 'Add location';
-  const locationCoordsSummary = formatCoords(locationCoords);
+  const locationSummary =
+    location || resolvedLocationText || 'Add location';
   const mapCenter = useMemo<LatLngExpression>(() => {
     if (draftLocationCoords) {
       return [draftLocationCoords.lat, draftLocationCoords.lng];
@@ -431,11 +790,8 @@ function CreateEvent({
             <span className="location-button-summary">
               {locationSummary}
             </span>
-            {location && locationCoordsSummary && (
-              <span className="location-button-coords">{locationCoordsSummary}</span>
-            )}
-            {!location && !locationCoordsSummary && (
-              <span className="location-button-coords placeholder">Pick on map or type an address</span>
+            {!location && !resolvedLocationText && (
+              <span className="location-button-helper">Pick on map or type an address</span>
             )}
           </button>
         </div>
@@ -455,21 +811,21 @@ function CreateEvent({
           <div className="time-range">
             <label>
               <span>Start time</span>
-              <input
+        <input
                 type="time"
                 className="input-field time-input"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-              />
+          value={startTime}
+          onChange={(e) => setStartTime(e.target.value)}
+        />
             </label>
             <label>
               <span>End time</span>
-              <input
+        <input
                 type="time"
                 className="input-field time-input"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-              />
+          value={endTime}
+          onChange={(e) => setEndTime(e.target.value)}
+        />
             </label>
           </div>
           <small className="date-summary">
@@ -593,18 +949,72 @@ function CreateEvent({
                 <LocationMarker position={draftLocationCoords} onSelect={handleDraftLocationCoordsChange} />
               </LeafletMapContainer>
               <p className="location-hint">Tap on the map to drop a pin, or enter an address or coordinates.</p>
-              <label className="location-input-label">
-                Address or coordinates
-                <input
-                  className="input-field location-input"
-                  placeholder="Search address or paste “37.7749, -122.4194”"
-                  value={draftLocationText}
-                  onChange={(e) => handleDraftLocationTextChange(e.target.value)}
-                />
-              </label>
-              {draftLocationCoords && (
+              {(isGeocoding || geocodeStatus === 'not-found' || geocodeStatus === 'error') && (
+                <div
+                  className={`location-status ${
+                    geocodeStatus === 'not-found' || geocodeStatus === 'error' ? 'error' : 'loading'
+                  }`}
+                >
+                  {isGeocoding
+                    ? 'Searching for location…'
+                    : geocodeStatus === 'not-found'
+                      ? 'No results found. Try refining the address.'
+                      : 'Could not verify the location right now. Please try again.'}
+                </div>
+              )}
+              <div className="location-input-wrapper">
+                <label className="location-input-label">
+                  Address or coordinates
+                  <input
+                    ref={locationInputRef}
+                    className="input-field location-input"
+                    placeholder="Search address"
+                    value={draftLocationText}
+                    onChange={(e) => handleDraftLocationTextChange(e.target.value)}
+                    onKeyDown={handleLocationInputKeyDown}
+                    onFocus={() => {
+                      if (suggestions.length > 0) {
+                        setSuggestionOpen(true);
+                      }
+                    }}
+                    aria-autocomplete="list"
+                    aria-expanded={isSuggestionOpen}
+                    aria-controls="location-suggestion-list"
+                    aria-activedescendant={
+                      highlightIndex >= 0 ? `location-suggestion-${highlightIndex}` : undefined
+                    }
+                  />
+                </label>
+                {isSuggestionOpen && suggestions.length > 0 && (
+                  <ul
+                    id="location-suggestion-list"
+                    className="location-suggestions"
+                    role="listbox"
+                    ref={suggestionListRef}
+                  >
+                    {suggestions.map((item, index) => (
+                      <li
+                        key={`${item.label}-${index}`}
+                        id={`location-suggestion-${index}`}
+                        role="option"
+                        aria-selected={highlightIndex === index}
+                        className={`location-suggestion ${highlightIndex === index ? 'active' : ''}`}
+                        onMouseEnter={() => setHighlightIndex(index)}
+                        onMouseLeave={() => setHighlightIndex(-1)}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          handleSuggestionSelect(index);
+                        }}
+                      >
+                        <span className="suggestion-label">{item.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {resolvedLocationText && (
                 <div className="location-coords-preview">
-                  Pin position: {formatCoords(draftLocationCoords)}
+                  <span>{resolvedLocationText}</span>
                 </div>
               )}
             </div>

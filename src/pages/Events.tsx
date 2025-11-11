@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebaseConfig';
 
@@ -15,6 +15,7 @@ export type EventItem = {
     lat: number;
     lng: number;
   } | null;
+  interests?: string[];
 };
 
 type EventsProps = {
@@ -35,6 +36,16 @@ function Events({
   activeView,
 }: EventsProps) {
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week'>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('');
+  const [interestFilter, setInterestFilter] = useState<string>('');
+  const [isDateOpen, setIsDateOpen] = useState(false);
+  const [isLocationOpen, setIsLocationOpen] = useState(false);
+  const [isInterestOpen, setIsInterestOpen] = useState(false);
+
+  const dateRef = useRef<HTMLDivElement | null>(null);
+  const locationRef = useRef<HTMLDivElement | null>(null);
+  const interestRef = useRef<HTMLDivElement | null>(null);
   const likesCount = 3;
 
   useEffect(() => {
@@ -46,20 +57,201 @@ function Events({
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (isDateOpen && dateRef.current && !dateRef.current.contains(target)) {
+        setIsDateOpen(false);
+      }
+      if (isLocationOpen && locationRef.current && !locationRef.current.contains(target)) {
+        setIsLocationOpen(false);
+      }
+      if (isInterestOpen && interestRef.current && !interestRef.current.contains(target)) {
+        setIsInterestOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDateOpen, isLocationOpen, isInterestOpen]);
+
+  const locationOptions = useMemo(() => {
+    const set = new Set<string>();
+    events.forEach((event) => {
+      if (event.location) {
+        set.add(event.location);
+      }
+    });
+
+    return Array.from(set).sort();
+  }, [events]);
+
+  const interestOptions = useMemo(() => {
+    const set = new Set<string>();
+    events.forEach((event) => {
+      if (Array.isArray(event.interests)) {
+        event.interests.forEach((interest) => set.add(interest));
+      }
+    });
+
+    if (set.size === 0) {
+      ['Outdoors', 'Food & Drink', 'Live Music', 'Art & Culture', 'Wellness', 'Tech & Startups'].forEach(
+        (interest) => set.add(interest),
+      );
+    }
+
+    return Array.from(set).sort();
+  }, [events]);
+
+  const filteredEvents = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(startOfToday);
+    endOfToday.setDate(endOfToday.getDate() + 1);
+    const endOfWeek = new Date(startOfToday);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    return events.filter((event) => {
+      const eventDate = event.startTime ? new Date(event.startTime) : null;
+      if (dateFilter === 'today' && (!eventDate || eventDate < startOfToday || eventDate >= endOfToday)) {
+        return false;
+      }
+      if (dateFilter === 'week' && (!eventDate || eventDate < startOfToday || eventDate >= endOfWeek)) {
+        return false;
+      }
+      if (locationFilter) {
+        const matchLocation = event.location?.toLowerCase().includes(locationFilter.toLowerCase());
+        if (!matchLocation) return false;
+      }
+      if (interestFilter) {
+        const interestMatch =
+          event.description?.toLowerCase().includes(interestFilter.toLowerCase()) ||
+          event.name?.toLowerCase().includes(interestFilter.toLowerCase());
+        if (!interestMatch) return false;
+      }
+      return true;
+    });
+  }, [events, dateFilter, locationFilter, interestFilter]);
+
+  const handleResetFilters = () => {
+    setDateFilter('all');
+    setLocationFilter('');
+    setInterestFilter('');
+    setIsDateOpen(false);
+    setIsLocationOpen(false);
+    setIsInterestOpen(false);
+  };
+
+  const handleDateSelect = (value: 'all' | 'today' | 'week') => {
+    setDateFilter(value);
+    setIsDateOpen(false);
+  };
+
+  const handleLocationSelect = (value: string) => {
+    setLocationFilter(value);
+    setIsLocationOpen(false);
+  };
+
+  const handleInterestSelect = (value: string) => {
+    setInterestFilter(value);
+    setIsInterestOpen(false);
+  };
+
+  const handleCustomLocation = () => {
+    const value = window.prompt('Filter by location (leave blank to reset):', locationFilter);
+    if (value !== null) {
+      setLocationFilter(value.trim());
+    }
+    setIsLocationOpen(false);
+  };
+
+  const handleCustomInterest = () => {
+    const value = window.prompt('Filter by interest keyword (leave blank to reset):', interestFilter);
+    if (value !== null) {
+      setInterestFilter(value.trim());
+    }
+    setIsInterestOpen(false);
+  };
+
+  const dateLabel =
+    dateFilter === 'all' ? 'Any time ▾' : dateFilter === 'today' ? 'Today ▾' : 'This week ▾';
+  const locationLabel = locationFilter ? `${locationFilter} ▾` : 'Location ▾';
+  const interestLabel = interestFilter ? `${interestFilter} ▾` : 'Interests ▾';
   return (
     <div className="events-page">
       <header className="events-header">
         <h1>Events</h1>
         <div className="filters">
-          <button className="chip">Today ▾</button>
-          <button className="chip">Location ▾</button>
-          <button className="chip">Interests ▾</button>
-          <button className="chip settings" aria-label="Filters">⚙️</button>
+          <div className={`filter-chip ${isDateOpen ? 'open' : ''}`} ref={dateRef}>
+            <button type="button" className="chip" onClick={() => setIsDateOpen((prev) => !prev)}>
+              {dateLabel}
+            </button>
+            {isDateOpen && (
+              <div className="filters-menu">
+                <button type="button" onClick={() => handleDateSelect('all')}>
+                  Any time
+                </button>
+                <button type="button" onClick={() => handleDateSelect('today')}>
+                  Today
+                </button>
+                <button type="button" onClick={() => handleDateSelect('week')}>
+                  This week
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className={`filter-chip ${isLocationOpen ? 'open' : ''}`} ref={locationRef}>
+            <button type="button" className="chip" onClick={() => setIsLocationOpen((prev) => !prev)}>
+              {locationLabel}
+            </button>
+            {isLocationOpen && (
+              <div className="filters-menu">
+                <button type="button" onClick={() => handleLocationSelect('')}>
+                  All locations
+                </button>
+                {locationOptions.map((option) => (
+                  <button key={option} type="button" onClick={() => handleLocationSelect(option)}>
+                    {option}
+                  </button>
+                ))}
+                <button type="button" className="custom-option" onClick={handleCustomLocation}>
+                  Custom…
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className={`filter-chip ${isInterestOpen ? 'open' : ''}`} ref={interestRef}>
+            <button type="button" className="chip" onClick={() => setIsInterestOpen((prev) => !prev)}>
+              {interestLabel}
+            </button>
+            {isInterestOpen && (
+              <div className="filters-menu">
+                <button type="button" onClick={() => handleInterestSelect('')}>
+                  All interests
+                </button>
+                {interestOptions.map((option) => (
+                  <button key={option} type="button" onClick={() => handleInterestSelect(option)}>
+                    {option}
+                  </button>
+                ))}
+                <button type="button" className="custom-option" onClick={handleCustomInterest}>
+                  Custom…
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button className="chip settings" aria-label="Filters" onClick={handleResetFilters}>⚙️</button>
         </div>
       </header>
 
       <main className="events-list">
-        {events.map((ev) => (
+        {filteredEvents.map((ev) => (
           <section key={ev.id} className="event-group">
             <h2 className="group-title">{new Date(ev.startTime || '').toDateString()}</h2>
             <article

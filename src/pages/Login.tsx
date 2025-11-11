@@ -47,32 +47,59 @@ function Login({
   onLoginWithFacebook,
   onForgotPassword,
 }: LoginProps) {
-  return (
-    <div className="login-screen">
-      <img
-        src="/assets/ai-login.jpg"
-        alt="Meet people at events"
-        className="hero-image"
-      />
-      <div className="content">
-        <h1>Meet people at events</h1>
-        <p>
-          Find people who are going to the same events as you. Meet them there!
-        </p>
+  const handleForgotPasswordClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    onForgotPassword();
+  };
 
-        <button className="primary-button" onClick={onSignUp}>Sign up</button>
-        <button className="secondary-button" onClick={onLogin}>Log in</button>
-        <button className="secondary-button" onClick={onLoginWithGoogle}>
-          <IconGoogle />
-          Continue with Google
-        </button>
-        <button className="secondary-button" onClick={onLoginWithFacebook}>
-          <IconFacebook />
-          Continue with Facebook
-        </button>
-        <a href="#" onClick={onForgotPassword} className="forgot-password">Forgot Password?</a>
-      </div>
-      {/** Bottom nav intentionally removed for the login page */}
+  return (
+    <div className="login-shell">
+      <section className="login-card" role="dialog" aria-labelledby="login-title">
+        <div className="login-hero">
+          <img
+            src="/assets/ai-login.jpg"
+            alt="Couple getting ready for an event"
+          />
+          <div className="login-hero-overlay">
+            <span className="login-hero-badge">Place To Date</span>
+            <h1 id="login-title">Plan the date you both remember</h1>
+            <p>Discover curated experiences, share invites, and match with people who love the same events.</p>
+          </div>
+        </div>
+
+        <div className="login-body">
+          <header className="login-body-header">
+            <h2>Join the community</h2>
+            <p>Sign up in seconds or continue with your favorite service.</p>
+          </header>
+
+          <div className="login-actions">
+            <button type="button" className="login-btn primary" onClick={onSignUp}>
+              Create free account
+            </button>
+            <button type="button" className="login-btn secondary" onClick={onLogin}>
+              I already have an account
+            </button>
+
+            <div className="login-divider" role="separator" aria-hidden="true">
+              <span>or continue with</span>
+            </div>
+
+            <button type="button" className="login-btn surface" onClick={onLoginWithGoogle}>
+              <IconGoogle />
+              Google
+            </button>
+            <button type="button" className="login-btn surface" onClick={onLoginWithFacebook}>
+              <IconFacebook />
+              Facebook
+            </button>
+          </div>
+
+          <button type="button" className="login-link" onClick={handleForgotPasswordClick}>
+            Forgot password?
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
