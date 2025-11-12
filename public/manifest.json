@@ -3,15 +3,15 @@
   "name": "Place To Date",
   "icons": [
     {
-      "src": "assets/app icon.jpg",
+      "src": "assets/ptd_favicon_padding.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/app icon.jpg",
+      "src": "assets/ptd_favicon_padding.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     }
   ],
