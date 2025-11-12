@@ -3,19 +3,19 @@
   "name": "Place To Date",
   "icons": [
     {
-      "src": "assets/place_to_date_favicon_padding_18.png",
+      "src": "assets/place_to_date_new_10.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "assets/place_to_date_favicon_padding_18.png",
+      "src": "assets/place_to_date_new_10.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
   ],
-  "start_url": ".",
+  "start_url": "./?v=2",
   "display": "standalone",
   "theme_color": "#000000",
   "background_color": "#ffffff"
