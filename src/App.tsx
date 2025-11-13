@@ -142,7 +142,7 @@ function App() {
   };
 
   return (
-    <div className="App">
+    <div className={`App ${user ? '' : 'login-mode'}`}>
       {user ? (
         view === 'events' ? (
           <Events
