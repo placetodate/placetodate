@@ -9,6 +9,7 @@ type ProfileData = {
   interests: string[];
   photos: string[];
   avatar: string;
+  positions?: string[];
 };
 
 type ProfileProps = {
@@ -257,6 +258,11 @@ function Profile({ profile, onUpdate, onLogout, onBack, onNavigate, activeView }
         <img src={avatarToDisplay} alt={nameToDisplay} className="profile-avatar" />
         <h2>{nameToDisplay}</h2>
         <p className="profile-meta">{ageToDisplay}, {locationToDisplay}</p>
+        {!isEditing && profile.positions && profile.positions.length > 0 && (
+          <p className="profile-positions">
+            {profile.positions.join(' • ')}
+          </p>
+        )}
         <p className="profile-goal">{goalToDisplay}</p>
       </section>
 

@@ -25,6 +25,7 @@ type EventsProps = {
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   currentUserId?: string | null;
   activeView: 'events' | 'matches' | 'profile';
+  onLogout: () => void | Promise<void>;
 };
 
 function Events({
@@ -34,6 +35,7 @@ function Events({
   onNavigate,
   currentUserId,
   activeView,
+  onLogout,
 }: EventsProps) {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week'>('all');
@@ -42,10 +44,12 @@ function Events({
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [isInterestOpen, setIsInterestOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const dateRef = useRef<HTMLDivElement | null>(null);
   const locationRef = useRef<HTMLDivElement | null>(null);
   const interestRef = useRef<HTMLDivElement | null>(null);
+  const settingsRef = useRef<HTMLButtonElement | null>(null);
   const likesCount = 3;
 
   useEffect(() => {
@@ -70,13 +74,19 @@ function Events({
       if (isInterestOpen && interestRef.current && !interestRef.current.contains(target)) {
         setIsInterestOpen(false);
       }
+      if (isSettingsOpen && settingsRef.current && !settingsRef.current.contains(target)) {
+        const settingsMenu = settingsRef.current.nextElementSibling;
+        if (settingsMenu && !settingsMenu.contains(target)) {
+          setIsSettingsOpen(false);
+        }
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDateOpen, isLocationOpen, isInterestOpen]);
+  }, [isDateOpen, isLocationOpen, isInterestOpen, isSettingsOpen]);
 
   const locationOptions = useMemo(() => {
     const set = new Set<string>();
@@ -246,7 +256,32 @@ function Events({
             )}
           </div>
 
-          <button className="chip settings" aria-label="Filters" onClick={handleResetFilters}>⚙️</button>
+          <div className={`filter-chip ${isSettingsOpen ? 'open' : ''}`}>
+            <button
+              className="chip settings"
+              aria-label="Settings"
+              onClick={() => setIsSettingsOpen((prev) => !prev)}
+              ref={settingsRef}
+            >
+              ⚙️
+            </button>
+            {isSettingsOpen && (
+              <div className="filters-menu settings-menu">
+                <button type="button" onClick={() => {
+                  setIsSettingsOpen(false);
+                  onNavigate('profile');
+                }}>
+                  Profile
+                </button>
+                <button type="button" onClick={() => {
+                  setIsSettingsOpen(false);
+                  onLogout();
+                }}>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

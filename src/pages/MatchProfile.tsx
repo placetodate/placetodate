@@ -27,6 +27,11 @@ function MatchProfileView({ match, onBack, onNavigate, activeView }: MatchProfil
         <p className="profile-meta">
           {match.age}, {match.location}
         </p>
+        {match.positions && match.positions.length > 0 && (
+          <p className="profile-positions">
+            {match.positions.join(' • ')}
+          </p>
+        )}
         <p className="profile-goal">{match.goal}</p>
       </section>
 

@@ -10,6 +10,7 @@ export type MatchProfile = {
   goal: string;
   about: string;
   photos: string[];
+  positions?: string[];
 };
 
 type MatchesProps = {
@@ -20,52 +21,58 @@ type MatchesProps = {
 
 const sampleMatches: MatchProfile[] = [
   {
-    name: 'Amelia',
+    name: 'Maayan',
     age: 29,
     location: 'Tel Aviv',
-    interests: ['Hiking', 'Live Music'],
+    interests: ['Hiking', 'Live Music', 'Food'],
     compatibility: 92,
     avatar: 'https://i.pravatar.cc/300?img=47',
     goal: 'Looking for shared adventures',
     about:
       'Product designer who spends weekends chasing sunsets along the coast. I love live music, impromptu road trips, and discovering new street food spots.',
     photos: [
-      'https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&w=900&q=80',
+      'https://i.pravatar.cc/600?img=47',
+      'https://i.pravatar.cc/600?img=47&seed=maayan1',
+      'https://i.pravatar.cc/600?img=47&seed=maayan2',
+      'https://i.pravatar.cc/600?img=47&seed=maayan3',
     ],
+    positions: ['Product Designer', 'UI/UX Consultant'],
   },
   {
-    name: 'Daniel',
+    name: 'Idan',
     age: 31,
     location: 'Herzliya',
-    interests: ['Surfing', 'Art Galleries'],
+    interests: ['Surfing', 'Art Galleries', 'Music'],
     compatibility: 88,
     avatar: 'https://i.pravatar.cc/300?img=12',
     goal: 'Seeking a partner-in-crime for beach getaways',
     about:
       'Startup founder by day, wave chaser by dawn. I collect vinyl records, experiment in the kitchen, and never turn down a weekend hike.',
     photos: [
-      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=900&q=80',
+      'https://i.pravatar.cc/600?img=12',
+      'https://i.pravatar.cc/600?img=12&seed=idan1',
+      'https://i.pravatar.cc/600?img=12&seed=idan2',
+      'https://i.pravatar.cc/600?img=12&seed=idan3',
     ],
+    positions: ['Startup Founder', 'Tech Entrepreneur'],
   },
   {
     name: 'Noa',
     age: 27,
     location: 'Jerusalem',
-    interests: ['Coffee Tastings', 'Photography'],
+    interests: ['Coffee Tastings', 'Photography', 'Art'],
     compatibility: 85,
     avatar: 'https://i.pravatar.cc/300?img=28',
     goal: 'Excited to meet someone curious and kind',
     about:
       'Documentary photographer fascinated by stories behind people and places. I host coffee tasting nights and always travel with a journal.',
     photos: [
-      'https://images.unsplash.com/photo-1506774778257-3247145b13fa?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
-      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=900&q=80',
+      'https://i.pravatar.cc/600?img=28',
+      'https://i.pravatar.cc/600?img=28&seed=noa1',
+      'https://i.pravatar.cc/600?img=28&seed=noa2',
+      'https://i.pravatar.cc/600?img=28&seed=noa3',
     ],
+    positions: ['Documentary Photographer', 'Photojournalist'],
   },
 ];
 

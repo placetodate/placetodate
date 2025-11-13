@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { EventItem } from './Events';
+import type { MatchProfile } from './Matches';
 
 type EventDetailsProps = {
   event: EventItem;
@@ -8,6 +9,7 @@ type EventDetailsProps = {
   canDelete?: boolean;
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   activeView: 'events' | 'matches' | 'profile';
+  onSelectMatch?: (match: MatchProfile) => void;
 };
 
 type Attendee = {
@@ -16,30 +18,63 @@ type Attendee = {
   avatar: string;
 };
 
-const DEFAULT_MATCHES: Attendee[] = [
+const DEFAULT_MATCHES: MatchProfile[] = [
   {
-    name: 'Sophia',
-    title: 'Software Engineer',
+    name: 'Shira',
+    age: 28,
+    location: 'Tel Aviv',
+    interests: ['Design', 'Wine', 'Art'],
+    compatibility: 91,
     avatar: 'https://i.pravatar.cc/160?img=47',
+    goal: 'Looking for shared adventures',
+    about: 'Product designer chasing sunsets and pop-up food markets.',
+    photos: [
+      'https://i.pravatar.cc/600?img=47',
+      'https://i.pravatar.cc/600?img=47&seed=shira1',
+      'https://i.pravatar.cc/600?img=47&seed=shira2',
+    ],
+    positions: ['Product Designer', 'Creative Director'],
   },
   {
-    name: 'Ethan',
-    title: 'Product Manager',
+    name: 'Lior',
+    age: 31,
+    location: 'Herzliya',
+    interests: ['Surfing', 'Photography', 'Travel'],
+    compatibility: 88,
     avatar: 'https://i.pravatar.cc/160?img=12',
+    goal: 'Ready to plan the next trip',
+    about: 'Startup PM who loves cooking classes and sunrise hikes.',
+    photos: [
+      'https://i.pravatar.cc/600?img=12',
+      'https://i.pravatar.cc/600?img=12&seed=lior1',
+      'https://i.pravatar.cc/600?img=12&seed=lior2',
+    ],
+    positions: ['Product Manager', 'Tech Lead'],
   },
   {
-    name: 'Olivia',
-    title: 'Data Scientist',
+    name: 'Noa',
+    age: 27,
+    location: 'Jerusalem',
+    interests: ['Art', 'Jazz', 'Photography'],
+    compatibility: 86,
     avatar: 'https://i.pravatar.cc/160?img=32',
+    goal: 'Searching for deep conversations',
+    about: 'Documentary photographer fascinated by city stories.',
+    photos: [
+      'https://i.pravatar.cc/600?img=32',
+      'https://i.pravatar.cc/600?img=32&seed=noa1',
+      'https://i.pravatar.cc/600?img=32&seed=noa2',
+    ],
+    positions: ['Documentary Photographer', 'Photojournalist'],
   },
 ];
 
-const DEFAULT_ATTENDEES: { name: string; avatar: string }[] = [
-  { name: 'Leo', avatar: 'https://i.pravatar.cc/80?img=55' },
-  { name: 'Amelia', avatar: 'https://i.pravatar.cc/80?img=28' },
-  { name: 'Lucas', avatar: 'https://i.pravatar.cc/80?img=8' },
-  { name: 'Mia', avatar: 'https://i.pravatar.cc/80?img=21' },
-  { name: 'Noah', avatar: 'https://i.pravatar.cc/80?img=18' },
+const DEFAULT_ATTENDEES: { name: string; avatar: string; position?: string }[] = [
+  { name: 'Idan', avatar: 'https://i.pravatar.cc/80?img=55', position: 'Software Engineer' },
+  { name: 'Maayan', avatar: 'https://i.pravatar.cc/80?img=28', position: 'Designer' },
+  { name: 'Lior', avatar: 'https://i.pravatar.cc/80?img=8', position: 'Product Manager' },
+  { name: 'Shira', avatar: 'https://i.pravatar.cc/80?img=21', position: 'Marketing Manager' },
+  { name: 'Noa', avatar: 'https://i.pravatar.cc/80?img=18', position: 'Photographer' },
 ];
 
 const fallbackCover = '/assets/events_illustration.png';
@@ -51,6 +86,7 @@ function EventDetails({
   canDelete = false,
   onNavigate,
   activeView,
+  onSelectMatch,
 }: EventDetailsProps) {
   const coverUrl = event.coverUrl || fallbackCover;
   const [isDeleting, setIsDeleting] = useState(false);
@@ -101,12 +137,13 @@ function EventDetails({
         <h3>Attendees</h3>
         <div className="attendee-list" aria-label="Attendees">
           {DEFAULT_ATTENDEES.map((attendee) => (
-            <img
-              key={attendee.name}
-              src={attendee.avatar}
-              alt={attendee.name}
-              className="attendee-avatar"
-            />
+            <div key={attendee.name} className="attendee-item" title={attendee.position || attendee.name}>
+              <img
+                src={attendee.avatar}
+                alt={attendee.name}
+                className="attendee-avatar"
+              />
+            </div>
           ))}
         </div>
       </section>
@@ -115,11 +152,24 @@ function EventDetails({
         <h3>Potential Matches</h3>
         <div className="match-grid">
           {DEFAULT_MATCHES.map((match) => (
-            <article key={match.name} className="match-card">
+            <article
+              key={match.name}
+              className="match-card"
+              role={onSelectMatch ? 'button' : undefined}
+              tabIndex={onSelectMatch ? 0 : -1}
+              onClick={() => onSelectMatch?.(match)}
+              onKeyDown={(e) => {
+                if (!onSelectMatch) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectMatch(match);
+                }
+              }}
+            >
               <img src={match.avatar} alt={match.name} />
               <div className="match-card-body">
                 <h4>{match.name}</h4>
-                <p>{match.title}</p>
+                <p>{match.goal}</p>
                 <div className="match-card-actions">
                   <button type="button" className="chip-button primary">
                     Chat
