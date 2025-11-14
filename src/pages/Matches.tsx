@@ -1,4 +1,6 @@
 import React from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCalendar, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
 
 export type MatchProfile = {
   name: string;
@@ -11,6 +13,12 @@ export type MatchProfile = {
   about: string;
   photos: string[];
   positions?: string[];
+  sharedEvents?: Array<{
+    id: string;
+    name: string;
+    date: string;
+    image?: string;
+  }>;
 };
 
 type MatchesProps = {
@@ -37,6 +45,10 @@ const sampleMatches: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=47&seed=maayan3',
     ],
     positions: ['Product Designer', 'UI/UX Consultant'],
+    sharedEvents: [
+      { id: '1', name: 'Sunset Yoga at Tel Aviv Beach', date: 'Mar 15' },
+      { id: '2', name: 'Live Jazz Night at Rothschild', date: 'Mar 20' },
+    ],
   },
   {
     name: 'Idan',
@@ -55,6 +67,10 @@ const sampleMatches: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=12&seed=idan3',
     ],
     positions: ['Startup Founder', 'Tech Entrepreneur'],
+    sharedEvents: [
+      { id: '3', name: 'Hiking in Ein Gedi Nature Reserve', date: 'Mar 22' },
+      { id: '4', name: 'Beach Volleyball Tournament', date: 'Mar 25' },
+    ],
   },
   {
     name: 'Noa',
@@ -73,6 +89,10 @@ const sampleMatches: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=28&seed=noa3',
     ],
     positions: ['Documentary Photographer', 'Photojournalist'],
+    sharedEvents: [
+      { id: '5', name: 'Art Gallery Opening in Neve Tzedek', date: 'Mar 18' },
+      { id: '6', name: 'Food & Wine Tasting in Jaffa', date: 'Mar 24' },
+    ],
   },
 ];
 
@@ -103,6 +123,12 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
           >
             <div className="match-avatar">
               <img src={match.avatar} alt={match.name} />
+              {match.sharedEvents && match.sharedEvents.length > 0 && (
+                  <div className="shared-events-badge">
+                    <FontAwesomeIcon icon={faCalendar} className="shared-events-icon" />
+                    <span className="shared-events-count">{match.sharedEvents.length}</span>
+                  </div>
+              )}
             </div>
             <div className="match-body">
               <div className="match-title">
@@ -110,6 +136,16 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
                 <span>{match.age}</span>
               </div>
               <p className="match-location">{match.location}</p>
+              {match.sharedEvents && match.sharedEvents.length > 0 && (
+                <div className="shared-events-list">
+                  {match.sharedEvents.map((event) => (
+                    <div key={event.id} className="shared-event-item">
+                      <span className="shared-event-date">{event.date}</span>
+                      <span className="shared-event-name">{event.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="match-interests">
                 {match.interests.map((interest) => (
                   <span key={interest} className="match-chip">
@@ -141,9 +177,7 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
           onClick={() => onNavigate('events')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M5 8.5h14M5 12.5h14M8.5 4v4.5M15.5 4v4.5M6.75 19.5h10.5c1.243 0 2.25-1.007 2.25-2.25V7.75A2.25 2.25 0 0 0 17.25 5.5H6.75A2.25 2.25 0 0 0 4.5 7.75v9.5A2.25 2.25 0 0 0 6.75 19.5Z" />
-            </svg>
+            <FontAwesomeIcon icon={faCalendar} />
           </span>
           <span className="nav-label">Events</span>
         </button>
@@ -152,9 +186,7 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
           onClick={() => onNavigate('matches')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 20.25s-7.5-4.5-7.5-10.125a4.125 4.125 0 0 1 7.125-2.7l.375.45.375-.45A4.125 4.125 0 0 1 19.5 10.125C19.5 15.75 12 20.25 12 20.25Z" />
-            </svg>
+            <FontAwesomeIcon icon={faHeart} />
           </span>
           {likesCount > 0 && <span className="nav-badge">{likesCount}</span>}
           <span className="nav-label">Matches</span>
@@ -164,10 +196,7 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
           onClick={() => onNavigate('profile')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 12.25c2.347 0 4.25-1.903 4.25-4.25S14.347 3.75 12 3.75 7.75 5.653 7.75 8s1.903 4.25 4.25 4.25Z" />
-              <path d="M5.5 19.25c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" strokeLinecap="round" />
-            </svg>
+            <FontAwesomeIcon icon={faUser} />
           </span>
           <span className="nav-label">Profile</span>
         </button>

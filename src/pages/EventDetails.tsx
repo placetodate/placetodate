@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { EventItem } from './Events';
 import type { MatchProfile } from './Matches';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faTrash, faCalendar, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
 
 type EventDetailsProps = {
   event: EventItem;
@@ -34,6 +36,9 @@ const DEFAULT_MATCHES: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=47&seed=shira2',
     ],
     positions: ['Product Designer', 'Creative Director'],
+    sharedEvents: [
+      { id: '1', name: 'Sunset Yoga at Tel Aviv Beach', date: 'Mar 15' },
+    ],
   },
   {
     name: 'Lior',
@@ -50,6 +55,9 @@ const DEFAULT_MATCHES: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=12&seed=lior2',
     ],
     positions: ['Product Manager', 'Tech Lead'],
+    sharedEvents: [
+      { id: '3', name: 'Hiking in Ein Gedi Nature Reserve', date: 'Mar 22' },
+    ],
   },
   {
     name: 'Noa',
@@ -66,6 +74,9 @@ const DEFAULT_MATCHES: MatchProfile[] = [
       'https://i.pravatar.cc/600?img=32&seed=noa2',
     ],
     positions: ['Documentary Photographer', 'Photojournalist'],
+    sharedEvents: [
+      { id: '5', name: 'Art Gallery Opening in Neve Tzedek', date: 'Mar 18' },
+    ],
   },
 ];
 
@@ -108,7 +119,7 @@ function EventDetails({
     <div className="event-details-page">
       <header className="event-details-header">
         <button className="icon-button" aria-label="Back to events" onClick={onBack}>
-          ←
+          <FontAwesomeIcon icon={faArrowLeft} />
         </button>
         <h1>Event Details</h1>
         {canDelete && onDelete ? (
@@ -118,7 +129,7 @@ function EventDetails({
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            🗑
+            <FontAwesomeIcon icon={faTrash} />
           </button>
         ) : (
           <span aria-hidden="true" className="header-spacer" />
@@ -166,10 +177,28 @@ function EventDetails({
                 }
               }}
             >
-              <img src={match.avatar} alt={match.name} />
+              <div className="match-avatar">
+                <img src={match.avatar} alt={match.name} />
+                {match.sharedEvents && match.sharedEvents.length > 0 && (
+                  <div className="shared-events-badge">
+                    <FontAwesomeIcon icon={faCalendar} className="shared-events-icon" />
+                    <span className="shared-events-count">{match.sharedEvents.length}</span>
+                  </div>
+                )}
+              </div>
               <div className="match-card-body">
                 <h4>{match.name}</h4>
                 <p>{match.goal}</p>
+                {match.sharedEvents && match.sharedEvents.length > 0 && (
+                  <div className="shared-events-list">
+                    {match.sharedEvents.map((event) => (
+                      <div key={event.id} className="shared-event-item">
+                        <span className="shared-event-date">{event.date}</span>
+                        <span className="shared-event-name">{event.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="match-card-actions">
                   <button type="button" className="chip-button primary">
                     Chat
@@ -190,9 +219,7 @@ function EventDetails({
           onClick={() => onNavigate('events')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M5 8.5h14M5 12.5h14M8.5 4v4.5M15.5 4v4.5M6.75 19.5h10.5c1.243 0 2.25-1.007 2.25-2.25V7.75A2.25 2.25 0 0 0 17.25 5.5H6.75A2.25 2.25 0 0 0 4.5 7.75v9.5A2.25 2.25 0 0 0 6.75 19.5Z" />
-            </svg>
+            <FontAwesomeIcon icon={faCalendar} />
           </span>
           <span className="nav-label">Events</span>
         </button>
@@ -201,9 +228,7 @@ function EventDetails({
           onClick={() => onNavigate('matches')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 20.25s-7.5-4.5-7.5-10.125a4.125 4.125 0 0 1 7.125-2.7l.375.45.375-.45A4.125 4.125 0 0 1 19.5 10.125C19.5 15.75 12 20.25 12 20.25Z" />
-            </svg>
+            <FontAwesomeIcon icon={faHeart} />
           </span>
           {likesCount > 0 && <span className="nav-badge">{likesCount}</span>}
           <span className="nav-label">Matches</span>
@@ -213,10 +238,7 @@ function EventDetails({
           onClick={() => onNavigate('profile')}
         >
           <span className="nav-icon">
-            <svg viewBox="0 0 24 24">
-              <path d="M12 12.25c2.347 0 4.25-1.903 4.25-4.25S14.347 3.75 12 3.75 7.75 5.653 7.75 8s1.903 4.25 4.25 4.25Z" />
-              <path d="M5.5 19.25c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5" strokeLinecap="round" />
-            </svg>
+            <FontAwesomeIcon icon={faUser} />
           </span>
           <span className="nav-label">Profile</span>
         </button>
