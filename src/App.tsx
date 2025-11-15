@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import './App.css';
 import { auth, googleProvider, db } from './firebaseConfig';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
@@ -10,74 +11,341 @@ import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
 import Matches, { type MatchProfile } from './pages/Matches';
 import MatchProfileView from './pages/MatchProfile';
+import ProtectedRoute from './components/ProtectedRoute';
 
-type MainView = 'events' | 'createEvent' | 'eventDetails' | 'profile' | 'matches' | 'matchProfile';
 type NavView = 'events' | 'matches' | 'profile';
 
 type ProfileData = {
   name: string;
-  age: number;
+  dateOfBirth?: string;
+  age?: number;
+  gender?: string;
+  interestedIn?: string;
+  homeLocation?: string;
+  education?: string;
+  hobbies?: string;
   location: string;
-  goal: string;
-  about: string;
-  interests: string[];
+  goal?: string;
+  about?: string;
+  interests?: string[];
   photos: string[];
   avatar: string;
+  makeAllPhotosVisible?: boolean;
   positions?: string[];
 };
+
+// Wrapper components for routes that need props
+const EventsRoute: React.FC<{ user: User | null }> = ({ user }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
+  
+  return (
+    <Events
+      currentUserId={user?.uid}
+      onAddNewEvent={() => navigate('/events/create')}
+      onSelectEvent={(ev) => navigate(`/events/${ev.id}`)}
+      onEditEvent={(ev) => navigate(`/events/${ev.id}/edit`)}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+      onLogout={handleLogout}
+    />
+  );
+};
+
+const CreateEventRoute: React.FC<{ user: User | null }> = ({ user }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id?: string }>();
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [isLoading, setIsLoading] = useState(!!id);
+
+  useEffect(() => {
+    if (id) {
+      const fetchEvent = async () => {
+        try {
+          const eventDoc = await getDoc(doc(db, 'events', id));
+          if (eventDoc.exists()) {
+            setEditingEvent({ id: eventDoc.id, ...eventDoc.data() } as EventItem);
+          }
+        } catch (error) {
+          console.error('Error fetching event:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchEvent();
+    }
+  }, [id]);
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <CreateEvent
+      mode={editingEvent ? 'update' : 'create'}
+      initialEvent={editingEvent || undefined}
+      onClose={() => navigate('/events')}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+    />
+  );
+};
+
+const EventDetailsRoute: React.FC<{ user: User | null }> = ({ user }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const [event, setEvent] = useState<EventItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      const fetchEvent = async () => {
+        try {
+          const eventDoc = await getDoc(doc(db, 'events', id));
+          if (eventDoc.exists()) {
+            setEvent({ id: eventDoc.id, ...eventDoc.data() } as EventItem);
+          } else {
+            navigate('/events');
+          }
+        } catch (error) {
+          console.error('Error fetching event:', error);
+          navigate('/events');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchEvent();
+    }
+  }, [id, navigate]);
+
+  const handleDelete = async (eventToDelete: EventItem) => {
+    try {
+      await deleteDoc(doc(db, 'events', eventToDelete.id));
+      navigate('/events');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!event) {
+    return null;
+  }
+
+  return (
+    <EventDetails
+      event={event}
+      onBack={() => navigate('/events')}
+      canDelete={event.ownerUid === user?.uid}
+      onDelete={handleDelete}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+      onSelectMatch={(match) => navigate(`/matches/${match.name.toLowerCase().replace(/\s+/g, '-')}`, { state: { match, from: location.pathname } })}
+      currentUserId={user?.uid}
+    />
+  );
+};
+
+const MatchesRoute: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return (
+    <Matches
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+      onSelectMatch={(match) => navigate(`/matches/${match.name.toLowerCase().replace(/\s+/g, '-')}`, { state: { match, from: location.pathname } })}
+    />
+  );
+};
+
+const MatchProfileRoute: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const match = (location.state as any)?.match as MatchProfile | undefined;
+  const fromPath = (location.state as any)?.from as string | undefined;
+  
+  if (!match) {
+    // If no match in state, redirect back to matches
+    navigate('/matches');
+    return null;
+  }
+
+  const handleBack = () => {
+    // If we know where the user came from, go back there, otherwise go to matches
+    if (fromPath) {
+      navigate(fromPath);
+    } else {
+      navigate('/matches');
+    }
+  };
+
+  return (
+    <MatchProfileView
+      match={match}
+      onBack={handleBack}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+    />
+  );
+};
+
+const ProfileRoute: React.FC<{ user: User | null; profileData: ProfileData; onUpdateProfile: (profile: ProfileData) => void; profileLoading: boolean }> = ({ user, profileData, onUpdateProfile, profileLoading }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate('/login');
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
+  
+  if (profileLoading) {
+    return <div>Loading profile...</div>;
+  }
+  
+  return (
+    <Profile
+      profile={profileData}
+      onUpdate={onUpdateProfile}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+      onLogout={handleLogout}
+      user={user}
+    />
+  );
+};
+
+const LoginRoute: React.FC<{ onGoogleLogin: () => Promise<void> }> = ({ onGoogleLogin }) => {
+  const navigate = useNavigate();
+  
+  const handleGoogleLogin = async () => {
+    await onGoogleLogin();
+    navigate('/events');
+  };
+
+  return (
+    <Login
+      onSignUp={() => console.log("Sign up clicked")}
+      onLogin={() => console.log("Login clicked")}
+      onLoginWithGoogle={handleGoogleLogin}
+      onLoginWithFacebook={() => console.log("Facebook login clicked")}
+      onForgotPassword={() => console.log("Forgot password clicked")}
+    />
+  );
+};
+
+function getActiveView(pathname: string): NavView {
+  if (pathname.startsWith('/profile')) return 'profile';
+  if (pathname.startsWith('/matches')) return 'matches';
+  return 'events';
+}
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loginCount, setLoginCount] = useState<number | null>(null);
-  const [view, setView] = useState<MainView>('events');
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
-  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
-  const [selectedMatch, setSelectedMatch] = useState<MatchProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData>({
-    name: 'Stav',
-    age: 28,
-    location: 'Tel Aviv',
-    goal: 'Looking for a relationship',
-    about:
-      "I'm a software engineer who loves hiking, photography, and exploring new cultures. I'm looking for someone who is adventurous, kind, and enjoys deep conversations.",
-    interests: ['Hiking', 'Photography', 'Travel', 'Tech', 'Foodie', 'Music'],
-    photos: [
-      'https://i.pravatar.cc/600?img=45',
-      'https://i.pravatar.cc/600?img=45&seed=stav1',
-      'https://i.pravatar.cc/600?img=45&seed=stav2',
-      'https://i.pravatar.cc/600?img=45&seed=stav3',
-    ],
-    avatar: 'https://i.pravatar.cc/240?img=45',
-    positions: ['Software Engineer', 'Full Stack Developer'],
+    name: '',
+    location: '',
+    photos: [],
+    avatar: '',
   });
+  const [profileLoading, setProfileLoading] = useState(true);
 
-  const handleDeleteEvent = async (event: EventItem) => {
+  const loadProfileData = async (userId: string) => {
     try {
-      await deleteDoc(doc(db, 'events', event.id));
-    } catch (err) {
-      console.error(err);
+      const userRef = doc(db, "users", userId);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setProfileData({
+          name: data.name || data.displayName || '',
+          dateOfBirth: data.dateOfBirth || '',
+          age: data.age,
+          gender: data.gender || '',
+          interestedIn: data.interestedIn || '',
+          homeLocation: data.homeLocation || data.location || '',
+          education: data.education || '',
+          hobbies: data.hobbies || '',
+          location: data.location || data.homeLocation || '',
+          goal: data.goal || '',
+          about: data.about || '',
+          interests: data.interests || [],
+          photos: data.photos || [],
+          avatar: data.avatar || data.photoURL || '',
+          makeAllPhotosVisible: data.makeAllPhotosVisible || false,
+          positions: data.positions,
+        });
+      } else {
+        // Set default values if profile doesn't exist
+        // Try to get from auth user
+        const authUser = auth.currentUser;
+        setProfileData({
+          name: authUser?.displayName || '',
+          location: '',
+          photos: [],
+          avatar: authUser?.photoURL || '',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
     } finally {
-      setSelectedEvent(null);
-      setEditingEvent(null);
-      setView('events');
+      setProfileLoading(false);
     }
   };
 
-  const handleNavigate = (target: NavView) => {
-    setSelectedEvent(null);
-    setEditingEvent(null);
-    setView(target);
-  };
-
-  const activeNav: NavView =
-    view === 'profile' ? 'profile' : view === 'matches' || view === 'matchProfile' ? 'matches' : 'events';
-  const handleUpdateProfile = (nextProfile: ProfileData) => {
-    setProfileData(nextProfile);
+  const handleUpdateProfile = async (nextProfile: ProfileData) => {
+    if (!user) {
+      console.error('No user found, cannot save profile');
+      return;
+    }
+    
+    try {
+      const userRef = doc(db, "users", user.uid);
+      
+      // Remove undefined values before saving to Firebase
+      const cleanProfile: any = {};
+      Object.keys(nextProfile).forEach((key) => {
+        const value = (nextProfile as any)[key];
+        if (value !== undefined) {
+          cleanProfile[key] = value;
+        }
+      });
+      
+      // Use setDoc with merge to create or update the document
+      await setDoc(userRef, {
+        ...cleanProfile,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      setProfileData(nextProfile);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      // If update fails, still update local state
+      setProfileData(nextProfile);
+      throw error; // Re-throw to let the component know there was an error
+    }
   };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setAuthLoading(false);
       if (currentUser) {
         const userRef = doc(db, "users", currentUser.uid);
         getDoc(userRef).then(docSnap => {
@@ -87,8 +355,11 @@ function App() {
             setLoginCount(0);
           }
         });
+        // Load profile data
+        loadProfileData(currentUser.uid);
       } else {
         setLoginCount(null);
+        setProfileLoading(false);
       }
     });
     return () => unsubscribe();
@@ -109,8 +380,13 @@ function App() {
           name: result.user.displayName,
           email: result.user.email,
           loginCount: 1,
+          avatar: result.user.photoURL || '',
+          photos: [],
+          location: '',
         });
       }
+      // Load profile data after login
+      loadProfileData(result.user.uid);
     } catch (error) {
       console.error("Error signing in with Google: ", error);
     }
@@ -306,93 +582,95 @@ function App() {
     }
   }, [user]);
 
+  // Show loading screen while checking auth state
+  if (authLoading) {
+    return (
+      <div className={`App ${user ? '' : 'login-mode'}`} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className={`App ${user ? '' : 'login-mode'}`}>
-      {user ? (
-        view === 'events' ? (
-          <Events
-            currentUserId={user?.uid}
-            onAddNewEvent={() => {
-              setEditingEvent(null);
-              setView('createEvent');
-            }}
-            onSelectEvent={(ev) => {
-              setSelectedEvent(ev);
-              setView('eventDetails');
-            }}
-            onEditEvent={(ev) => {
-              setEditingEvent(ev);
-              setView('createEvent');
-            }}
-            onNavigate={handleNavigate}
-            activeView={activeNav}
-            onLogout={handleLogout}
-          />
-        ) : view === 'createEvent' ? (
-          <CreateEvent
-            mode={editingEvent ? 'update' : 'create'}
-            initialEvent={editingEvent || undefined}
-            onClose={() => {
-              setEditingEvent(null);
-              setView('events');
-            }}
-            onNavigate={handleNavigate}
-            activeView={activeNav}
-          />
-        ) : view === 'eventDetails' ? (
-          selectedEvent && (
-            <EventDetails
-              event={selectedEvent}
-              onBack={() => {
-                setSelectedEvent(null);
-                setView('events');
-              }}
-              canDelete={selectedEvent.ownerUid === user?.uid}
-              onDelete={handleDeleteEvent}
-              onNavigate={handleNavigate}
-              activeView={activeNav}
-              onSelectMatch={(match) => {
-                setSelectedMatch(match);
-                setView('matchProfile');
-              }}
-            />
-          )
-        ) : view === 'matches' ? (
-          <Matches
-            onNavigate={handleNavigate}
-            activeView={activeNav}
-            onSelectMatch={(match) => {
-              setSelectedMatch(match);
-              setView('matchProfile');
-            }}
-          />
-        ) : view === 'matchProfile' ? (
-          selectedMatch && (
-            <MatchProfileView
-              match={selectedMatch}
-              onBack={() => setView('matches')}
-              onNavigate={handleNavigate}
-              activeView={activeNav}
-            />
-          )
-        ) : (
-          <Profile
-            profile={profileData}
-            onUpdate={handleUpdateProfile}
-            onNavigate={handleNavigate}
-            activeView={activeNav}
-            onLogout={handleLogout}
-          />
-        )
-      ) : (
-        <Login
-          onSignUp={handleSignUp}
-          onLogin={handleLogin}
-          onLoginWithGoogle={handleGoogleLogin}
-          onLoginWithFacebook={handleFacebookLogin}
-          onForgotPassword={handleForgotPassword}
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            user ? (
+              <Navigate to="/events" replace />
+            ) : (
+              <LoginRoute onGoogleLogin={handleGoogleLogin} />
+            )
+          }
         />
-      )}
+        <Route
+          path="/"
+          element={
+            user ? (
+              <Navigate to="/events" replace />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/events"
+          element={
+            <ProtectedRoute user={user}>
+              <EventsRoute user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/events/create"
+          element={
+            <ProtectedRoute user={user}>
+              <CreateEventRoute user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/events/:id"
+          element={
+            <ProtectedRoute user={user}>
+              <EventDetailsRoute user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/events/:id/edit"
+          element={
+            <ProtectedRoute user={user}>
+              <CreateEventRoute user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/matches"
+          element={
+            <ProtectedRoute user={user}>
+              <MatchesRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/matches/:id"
+          element={
+            <ProtectedRoute user={user}>
+              <MatchProfileRoute />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute user={user}>
+              <ProfileRoute user={user} profileData={profileData} onUpdateProfile={handleUpdateProfile} profileLoading={profileLoading} />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </div>
   );
 }
