@@ -233,6 +233,7 @@ function EventDetails({
         : (displayImage ? [displayImage] : []),
       positions: attendee.positions || [],
       sharedEvents: [],
+      userId: attendee.uid, // Include the actual user ID for proper chat room matching
     };
     
     onSelectMatch(matchProfile);

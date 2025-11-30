@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCalendar, faHeart, faUser } from '@fortawesome/free-solid-svg-icons';
+import { collection, query, where, onSnapshot, doc, getDoc, orderBy, FirestoreError } from 'firebase/firestore';
+import { db } from '../firebaseConfig';
 
 export type MatchProfile = {
   name: string;
@@ -13,6 +15,7 @@ export type MatchProfile = {
   about: string;
   photos: string[];
   positions?: string[];
+  userId?: string; // Firebase user ID - required for chat to work properly
   sharedEvents?: Array<{
     id: string;
     name: string;
@@ -25,6 +28,7 @@ type MatchesProps = {
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   activeView: 'events' | 'matches' | 'profile';
   onSelectMatch: (match: MatchProfile) => void;
+  currentUserId?: string | null;
 };
 
 const sampleMatches: MatchProfile[] = [
@@ -96,8 +100,183 @@ const sampleMatches: MatchProfile[] = [
   },
 ];
 
-function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
-  const likesCount = 3;
+function Matches({ onNavigate, activeView, onSelectMatch, currentUserId }: MatchesProps) {
+  const [matches, setMatches] = useState<MatchProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const likesCount = matches.length;
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setIsLoading(false);
+      return;
+    }
+
+    console.log('Fetching matches for user:', currentUserId);
+    
+    // Query matches where current user is a participant
+    const matchesRef = collection(db, 'matches');
+    
+    // Try with orderBy first, fallback to without orderBy if index is missing
+    let q;
+    try {
+      q = query(
+        matchesRef,
+        where('participants', 'array-contains', currentUserId),
+        orderBy('lastMessageAt', 'desc')
+      );
+    } catch (error) {
+      // If orderBy fails, use just the where clause
+      console.warn('OrderBy not available, using query without orderBy');
+      q = query(
+        matchesRef,
+        where('participants', 'array-contains', currentUserId)
+      );
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      async (snapshot) => {
+        console.log('Found', snapshot.size, 'matches');
+        const matchesList: MatchProfile[] = [];
+
+        // Process each match document
+        for (const matchDoc of snapshot.docs) {
+          const matchData = matchDoc.data();
+          
+          // Get the other user's ID (not the current user)
+          const otherUserId = matchData.user1Id === currentUserId 
+            ? matchData.user2Id 
+            : matchData.user1Id;
+          
+          const otherUserName = matchData.user1Id === currentUserId 
+            ? matchData.user2Name 
+            : matchData.user1Name;
+
+          try {
+            // Fetch the other user's profile data
+            const userDoc = await getDoc(doc(db, 'users', otherUserId));
+            
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              
+              // Create MatchProfile from user data
+              const matchProfile: MatchProfile = {
+                name: userData.name || otherUserName || 'Unknown',
+                age: userData.age || 0,
+                location: userData.location || userData.homeLocation || '',
+                interests: userData.interests || [],
+                compatibility: 0, // Could calculate this based on shared interests
+                avatar: userData.avatar || userData.photoURL || '',
+                goal: userData.goal || '',
+                about: userData.about || '',
+                photos: userData.photos || [],
+                positions: userData.positions || [],
+                userId: otherUserId, // Important: include the actual user ID
+                sharedEvents: [], // Could fetch shared events if needed
+              };
+              
+              matchesList.push(matchProfile);
+            } else {
+              // If user document doesn't exist, create a basic match profile
+              console.warn('User document not found for:', otherUserId);
+              const matchProfile: MatchProfile = {
+                name: otherUserName || 'Unknown User',
+                age: 0,
+                location: '',
+                interests: [],
+                compatibility: 0,
+                avatar: '',
+                goal: '',
+                about: '',
+                photos: [],
+                positions: [],
+                userId: otherUserId,
+                sharedEvents: [],
+              };
+              matchesList.push(matchProfile);
+            }
+          } catch (error) {
+            console.error('Error fetching user data for match:', error);
+          }
+        }
+
+        // Sort by lastMessageAt if we didn't use orderBy
+        matchesList.sort((a, b) => {
+          // This is a simplified sort - in a real app you'd track lastMessageAt in MatchProfile
+          return 0; // Keep original order or implement proper sorting
+        });
+
+        // If no real matches, show sample matches for demo
+        if (matchesList.length === 0) {
+          console.log('No real matches found, showing sample matches');
+          setMatches(sampleMatches);
+        } else {
+          setMatches(matchesList);
+        }
+        
+        setIsLoading(false);
+      },
+      (error: FirestoreError) => {
+        console.error('Error fetching matches:', error);
+        console.error('Error code:', error?.code);
+        
+        // If error is about missing index, try without orderBy
+        if (error?.code === 'failed-precondition' || error?.message?.includes('index')) {
+          console.log('Trying query without orderBy');
+          const qFallback = query(
+            matchesRef,
+            where('participants', 'array-contains', currentUserId)
+          );
+          
+          onSnapshot(qFallback, async (snapshot) => {
+            // Same processing logic as above
+            const matchesList: MatchProfile[] = [];
+            for (const matchDoc of snapshot.docs) {
+              const matchData = matchDoc.data();
+              const otherUserId = matchData.user1Id === currentUserId 
+                ? matchData.user2Id 
+                : matchData.user1Id;
+              const otherUserName = matchData.user1Id === currentUserId 
+                ? matchData.user2Name 
+                : matchData.user1Name;
+
+              try {
+                const userDoc = await getDoc(doc(db, 'users', otherUserId));
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  const matchProfile: MatchProfile = {
+                    name: userData.name || otherUserName || 'Unknown',
+                    age: userData.age || 0,
+                    location: userData.location || userData.homeLocation || '',
+                    interests: userData.interests || [],
+                    compatibility: 0,
+                    avatar: userData.avatar || userData.photoURL || '',
+                    goal: userData.goal || '',
+                    about: userData.about || '',
+                    photos: userData.photos || [],
+                    positions: userData.positions || [],
+                    userId: otherUserId,
+                    sharedEvents: [],
+                  };
+                  matchesList.push(matchProfile);
+                }
+              } catch (err) {
+                console.error('Error fetching user data:', err);
+              }
+            }
+            setMatches(matchesList.length > 0 ? matchesList : sampleMatches);
+            setIsLoading(false);
+          });
+        } else {
+          // Fall back to sample matches on other errors
+          setMatches(sampleMatches);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUserId]);
 
   return (
     <div className="matches-page">
@@ -107,20 +286,29 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
       </header>
 
       <main className="matches-list">
-        {sampleMatches.map((match) => (
-          <article
-            key={match.name}
-            className="match-card"
-            onClick={() => onSelectMatch(match)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onSelectMatch(match);
-              }
-            }}
-          >
+        {isLoading ? (
+          <div className="chat-empty-state">
+            <p>Loading matches...</p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className="chat-empty-state">
+            <p>No matches yet. Start chatting with people at events!</p>
+          </div>
+        ) : (
+          matches.map((match) => (
+            <article
+              key={match.userId || match.name}
+              className="match-card"
+              onClick={() => onSelectMatch(match)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectMatch(match);
+                }
+              }}
+            >
             <div className="match-avatar">
               <img src={match.avatar} alt={match.name} />
               {match.sharedEvents && match.sharedEvents.length > 0 && (
@@ -168,7 +356,8 @@ function Matches({ onNavigate, activeView, onSelectMatch }: MatchesProps) {
               </button>
             </div>
           </article>
-        ))}
+          ))
+        )}
       </main>
 
       <nav className="bottom-nav">

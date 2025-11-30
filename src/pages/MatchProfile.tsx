@@ -8,9 +8,10 @@ type MatchProfileProps = {
   onBack: () => void;
   onNavigate: (view: 'events' | 'matches' | 'profile') => void;
   activeView: 'events' | 'matches' | 'profile';
+  onChat?: (match: MatchProfile) => void;
 };
 
-function MatchProfileView({ match, onBack, onNavigate, activeView }: MatchProfileProps) {
+function MatchProfileView({ match, onBack, onNavigate, activeView, onChat }: MatchProfileProps) {
   const likesCount = 3;
 
   return (
@@ -63,7 +64,12 @@ function MatchProfileView({ match, onBack, onNavigate, activeView }: MatchProfil
       </section>
 
       <div className="profile-actions">
-        <button className="chip-button primary">Chat</button>
+        <button 
+          className="chip-button primary" 
+          onClick={() => onChat && onChat(match)}
+        >
+          Chat
+        </button>
         <button className="chip-button">Request Photos</button>
       </div>
 

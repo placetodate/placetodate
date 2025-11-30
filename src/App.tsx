@@ -11,6 +11,7 @@ import EventDetails from './pages/EventDetails';
 import Profile from './pages/Profile';
 import Matches, { type MatchProfile } from './pages/Matches';
 import MatchProfileView from './pages/MatchProfile';
+import Chat from './pages/Chat';
 import ProtectedRoute from './components/ProtectedRoute';
 
 type NavView = 'events' | 'matches' | 'profile';
@@ -159,11 +160,12 @@ const EventDetailsRoute: React.FC<{ user: User | null }> = ({ user }) => {
   );
 };
 
-const MatchesRoute: React.FC = () => {
+const MatchesRoute: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   return (
     <Matches
+      currentUserId={user?.uid}
       onNavigate={(view) => navigate(`/${view}`)}
       activeView={getActiveView(location.pathname)}
       onSelectMatch={(match) => navigate(`/matches/${match.name.toLowerCase().replace(/\s+/g, '-')}`, { state: { match, from: location.pathname } })}
@@ -171,7 +173,7 @@ const MatchesRoute: React.FC = () => {
   );
 };
 
-const MatchProfileRoute: React.FC = () => {
+const MatchProfileRoute: React.FC<{ user: User | null }> = ({ user }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
@@ -193,9 +195,46 @@ const MatchProfileRoute: React.FC = () => {
     }
   };
 
+  const handleChat = (matchToChat: MatchProfile) => {
+    navigate(`/chat/${matchToChat.name.toLowerCase().replace(/\s+/g, '-')}`, {
+      state: { match: matchToChat, from: location.pathname },
+    });
+  };
+
   return (
     <MatchProfileView
       match={match}
+      onBack={handleBack}
+      onNavigate={(view) => navigate(`/${view}`)}
+      activeView={getActiveView(location.pathname)}
+      onChat={handleChat}
+    />
+  );
+};
+
+const ChatRoute: React.FC<{ user: User | null }> = ({ user }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const match = (location.state as any)?.match as MatchProfile | undefined;
+  const fromPath = (location.state as any)?.from as string | undefined;
+
+  if (!match || !user) {
+    navigate('/matches');
+    return null;
+  }
+
+  const handleBack = () => {
+    if (fromPath) {
+      navigate(fromPath);
+    } else {
+      navigate('/matches');
+    }
+  };
+
+  return (
+    <Chat
+      match={match}
+      currentUserId={user.uid}
       onBack={handleBack}
       onNavigate={(view) => navigate(`/${view}`)}
       activeView={getActiveView(location.pathname)}
@@ -650,7 +689,7 @@ function App() {
           path="/matches"
           element={
             <ProtectedRoute user={user}>
-              <MatchesRoute />
+              <MatchesRoute user={user} />
             </ProtectedRoute>
           }
         />
@@ -658,7 +697,15 @@ function App() {
           path="/matches/:id"
           element={
             <ProtectedRoute user={user}>
-              <MatchProfileRoute />
+              <MatchProfileRoute user={user} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:id"
+          element={
+            <ProtectedRoute user={user}>
+              <ChatRoute user={user} />
             </ProtectedRoute>
           }
         />
